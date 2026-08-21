@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>資産形成シミュレータ | Wealth Simulator Pro</title>
+  <meta name="description" content="新NISA対応、積立投資・ゴール逆算・FIRE取崩し・ライフイベント連動の多機能資産運用シミュレータ">
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="logo-icon">
+          <i data-lucide="trending-up"></i>
+        </div>
+        <div class="header-titles">
+          <h1>資産形成シミュレータ <span class="badge-pro">PRO</span></h1>
+          <p class="subtitle">新NISA・FIRE・ライフプラン対応の次世代シミュレーション</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="btn-theme-toggle" class="btn-icon" title="テーマ切り替え" aria-label="テーマ切り替え">
+          <i data-lucide="sun" id="theme-icon-light" class="hidden"></i>
+          <i data-lucide="moon" id="theme-icon-dark"></i>
+        </button>
+        <button id="btn-export-csv" class="btn btn-secondary">
+          <i data-lucide="download"></i>
+          <span>CSV出力</span>
+        </button>
+        <button id="btn-reset" class="btn btn-outline" title="設定を初期化">
+          <i data-lucide="rotate-ccw"></i>
+          <span>リセット</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs" role="tablist">
+      <button class="nav-tab active" data-tab="accumulate" role="tab" aria-selected="true">
+        <i data-lucide="coins"></i>
+        <span>積立投資・新NISA</span>
+      </button>
+      <button class="nav-tab" data-tab="goal" role="tab" aria-selected="false">
+        <i data-lucide="target"></i>
+        <span>目標金額から逆算</span>
+      </button>
+      <button class="nav-tab" data-tab="fire" role="tab" aria-selected="false">
+        <i data-lucide="flame"></i>
+        <span>FIRE・資産取り崩し</span>
+      </button>
+      <button class="nav-tab" data-tab="lifeplan" role="tab" aria-selected="false">
+        <i data-lucide="calendar-heart"></i>
+        <span>ライフイベント連動</span>
+      </button>
+      <button class="nav-tab" data-tab="compare" role="tab" aria-selected="false">
+        <i data-lucide="git-compare"></i>
+        <span>シナリオ比較</span>
+      </button>
+    </nav>
+
+    <!-- Main Content Grid -->
+    <main class="main-layout">
+      <!-- Left Panel: Controls & Inputs -->
+      <aside class="control-panel">
+        <!-- Quick Presets -->
+        <div class="panel-section presets-section" id="presets-container">
+          <label class="section-label">
+            <i data-lucide="sparkles"></i> 人気プリセット
+          </label>
+          <div class="preset-chips">
+            <button class="preset-chip" data-preset="all-country">オルカン積立 (年利5%/月5万)</button>
+            <button class="preset-chip" data-preset="sp500">S&P500積極 (年利7%/月10万)</button>
+            <button class="preset-chip" data-preset="nisa-max">新NISA最速枠埋め (月30万×5年)</button>
+            <button class="preset-chip" data-preset="starter">少額スタート (年利4%/月1万)</button>
+          </div>
+        </div>
+
+        <!-- Dynamic Tab Input Forms -->
+        <form id="simulator-form" onsubmit="event.preventDefault();">
+          <!-- TAB 1: 積立投資 -->
+          <div class="tab-content active" id="tab-accumulate">
+            <div class="input-group">
+              <div class="input-header">
+                <label for="acc-initial">初期投資額</label>
+                <div class="input-val-display"><span id="acc-initial-val">100</span> 万円</div>
+              </div>
+              <div class="slider-container">
+                <input type="range" id="acc-initial" min="0" max="3000" step="10" value="100">
+                <input type="number" class="number-input" id="acc-initial-num" min="0" max="10000" value="100">
+              </div>
+            </div>
+
+            <div class="input-group">
+              <div class="input-header">
+                <label for="acc-monthly">毎月の積立額</label>
+                <div class="input-val-display"><span id="acc-monthly-val">5.0</span> 万円/月</div>
+              </div>
+              <div class="slider-container">
+                <input type="range" id="acc-monthly" min="0" max="50" step="0.5" value="5.0">
+                <input type="number" class="number-input" id="acc-monthly-num" min="0" max="200" step="0.5" value="5.0">
+              </div>
+            </div>
+
+            <div class="input-group">
+              <div class="input-header">
+                <label for="acc-rate">想定利回り (年率)</label>
+                <div class="input-val-display"><span id="acc-rate-val">5.0</span> %</div>
+              </div>
+              <div class="slider-container">
+                <input type="range" id="acc-rate" min="0.1" max="15.0" step="0.1" value="5.0">
+                <input type="number" class="number-input" id="acc-rate-num" min="0" max="30" step="0.1" value="5.0">
+              </div>
+            </div>
+
+            <div class="input-group">
+              <div class="input-header">
+                <label for="acc-years">積立期間</label>
+                <div class="input-val-display"><span id="acc-years-val">20</span> 年</div>
+              </div>
+              <div class="slider-container">
+                <input type="range" id="acc-years" min="1" max="40" step="1" value="20">
+                <input type="number" class="number-input" id="acc-years-num" min="1" max="50" value="20">
+              </div>
+            </div>
+
+            <div class="input-group">
+              <div class="input-header">
+                <label for="acc-start-age">現在の年齢 (開始年齢)</label>
+                <div class="input-val-display"><span id="acc-start-age-val">30</span> 歳</div>
+              </div>
+              <div class="slider-container">
+                <input type="range" id="acc-start-age" min="18" max="80" step="1" value="30">
+                <input type="number" class="number-input" id="acc-start-age-num" min="18" max="100" value="30">
+              </div>
+            </div>
+
+            <!-- Advanced Options Accordion -->
+            <div class="advanced-box">
+              <button type="button" class="btn-accordion" id="btn-acc-advanced">
+                <span>税金・インフレ詳細設定</span>
+                <i data-lucide="chevron-down" class="acc-arrow"></i>
+              </button>
+              <div class="accordion-body hidden" id="acc-advanced-body">
+                <div class="toggle-option">
+                  <label class="switch">
+                    <input type="checkbox" id="acc-nisa-enabled" checked>
+                    <span class="slider-round"></span>
+                  </label>
+                  <div class="toggle-label">
+                    <div class="toggle-title">新NISA非課税枠を適用 (上限1,800万円)</div>
+                    <div class="toggle-desc">超過分は特定口座 (税率20.315%) として計算</div>
+                  </div>
+                </div>
+
+                <div class="input-group mt-3">
+                  <div class="input-header">
+                    <label for="acc-inflation">想定インフレ率 (年率)</label>
+                    <div class="input-val-display"><span id="acc-inflation-val">0.0</span> %</div>
+                  </div>
+                  <div class="slider-container">
+                    <input type="range" id="acc-inflation" min="0" max="5.0" step="0.5" value="0.0">
+                    <input type="number" class="number-input" id="acc-inflation-num" min="0" max="10" step="0.5" value="0.0">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 2: 目標金額から逆算 -->
+          <div class="tab-content" id="tab-goal">
+            <div class="input-group">
+              <div class="input-header">
+                <label for="goal-target">目標資産額</label>
+                <div class="input-val-display"><span id="goal-target-val">3000</span> 万円</div>
+              </div>
+              <div class="slider-container">
+                <input type="range" id="goal-target" min="500" max="20000" step="100" value="3000">
+                <input type="number" class="number-input" id="goal-target-num" min="100" max="50000" value="3000">
+              </div>
+            </div>
+
+            <div class="input-group">
+              <div class="input-header">
+                <label for="goal-years">目標達成までの年数</label>
+                <div class="input-val-display"><span id="goal-years-val">20</span> 年</div>
+              </div>
+              <div class="slider-container">
+                <input type="range" id="goal-years" min="1" max="40" step="1" value="20">
+                <input type="number" class="number-input" id="goal-years-num" min="1" max="50" value="20">
+              </div>
+            </div>
+
+            <div class="input-group">
+              <div class="input-header">
+                <label for="goal-initial">現在の準備資金 (初期投資)</label>
+                <div class="input-val-display"><span id="goal-initial-val">100</span> 万円</div>
+              </div>
+              <div class="slider-container">
+                <input type="range" id="goal-initial" min="0" max="3000" step="10" value="100">
+                <input type="number" class="number-input" id="goal-initial-num" min="0" max="10000" value="100">
+              </div>
+            </div>
+
+            <div class="input-group">
+              <div class="input-header">
+                <label for="goal-rate">想定利回り (年率)</label>
+                <div class="input-val-display"><span id="goal-rate-val">5.0</span> %</div>
+              </div>
+              <div class="slider-container">
+                <input type="range" id="goal-rate" min="0.1" max="15.0" step="0.1" value="5.0">
+                <input type="number" class="number-input" id="goal-rate-num" min="0" max="30" step="0.1" value="5.0">
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 3: FIRE・資産取り崩し -->
+          <div class="tab-content" id="tab-fire">
+            <div class="input-group">
+              <div class="input-header">
+                <label for="fire-assets">リタイア時資産額</label>
+                <div class="input-val-display"><span id="fire-assets-val">5000</span> 万円</div>
+              </div>
+              <div class="slider-container">
+                <input type="range" id="fire-assets" min="1000" max="30000" step="100" value="5000">
+                <input type="number" class="number-input" id="fire-assets-num" min="500" max="50000" value="5000">
+              </div>
+            </div>
+
+            <div class="input-group">
+              <label class="sub-label">取り崩し方式</label>
+              <div class="radio-pill-group">
+                <label class="radio-pill">
+                  <input type="radio" name="fire-type" value="fixed-amount" checked>
+                  <span>定額取り崩し (毎月定額)</span>
+                </label>
+                <label class="radio-pill">
+                  <input type="radio" name="fire-type" value="fixed-rate">
+                  <span>定率取り崩し (4%ルール等)</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="input-group" id="fire-fixed-amount-group">
+              <div class="input-header">
+                <label for="fire-monthly">毎月の取り崩し額</label>
+                <div class="input-val-display"><span id="fire-monthly-val">20.0</span> 万円/月</div>
+              </div>
+              <div class="slider-container">
+                <input type="range" id="fire-monthly" min="5" max="100" step="1" value="20">
+                <input type="number" class="number-input" id="fire-monthly-num" min="1" max="200" value="20">
+              </div>
+            </div>
+
+            <div class="input-group hidden" id="fire-fixed-rate-group">
+              <div class="input-header">
+                <label for="fire-rate-pct">年間取り崩し率</label>
+                <div class="input-val-display"><span id="fire-rate-pct-val">4.0</span> %/年</div>
+              </div>
+              <div class="slider-container">
+                <input type="range" id="fire-rate-pct" min="1.0" max="10.0" step="0.5" value="4.0">
+                <input type="number" class="number-input" id="fire-rate-pct-num" min="0.5" max="20" step="0.1" value="4.0">
+              </div>
+            </div>
+
+            <div class="input-group">
+              <div class="input-header">
+                <label for="fire-return-rate">リタイア後の運用利回り</label>
+                <div class="input-val-display"><span id="fire-return-rate-val">3.0</span> %</div>
+              </div>
+              <div class="slider-container">
+                <input type="range" id="fire-return-rate" min="0.0" max="10.0" step="0.5" value="3.0">
+                <input type="number" class="number-input" id="fire-return-rate-num" min="0" max="20" step="0.1" value="3.0">
+              </div>
+            </div>
+
+            <div class="input-group">
+              <div class="input-header">
+                <label for="fire-start-age">取り崩し開始年齢</label>
+                <div class="input-val-display"><span id="fire-start-age-val">60</span> 歳</div>
+              </div>
+              <div class="slider-container">
+                <input type="range" id="fire-start-age" min="30" max="80" step="1" value="60">
+                <input type="number" class="number-input" id="fire-start-age-num" min="20" max="90" value="60">
+              </div>
+            </div>
+
+            <div class="input-group">
+              <div class="input-header">
+                <label for="fire-years">シミュレーション年数</label>
+                <div class="input-val-display"><span id="fire-years-val">35</span> 年</div>
+              </div>
+              <div class="slider-container">
+                <input type="range" id="fire-years" min="10" max="50" step="1" value="35">
+                <input type="number" class="number-input" id="fire-years-num" min="5" max="60" value="35">
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 4: ライフイベント連動 -->
+          <div class="tab-content" id="tab-lifeplan">
+            <div class="input-group">
+              <div class="input-header">
+                <label for="lp-initial">初期資産</label>
+                <div class="input-val-display"><span id="lp-initial-val">200</span> 万円</div>
+              </div>
+              <div class="slider-container">
+                <input type="range" id="lp-initial" min="0" max="3000" step="10" value="200">
+                <input type="number" class="number-input" id="lp-initial-num" min="0" max="10000" value="200">
+              </div>
+            </div>
+
+            <div class="input-group">
+              <div class="input-header">
+                <label for="lp-monthly">基本の毎月積立額</label>
+                <div class="input-val-display"><span id="lp-monthly-val">6.0</span> 万円/月</div>
+              </div>
+              <div class="slider-container">
+                <input type="range" id="lp-monthly" min="0" max="50" step="0.5" value="6.0">
+                <input type="number" class="number-input" id="lp-monthly-num" min="0" max="100" step="0.5" value="6.0">
+              </div>
+            </div>
+
+            <div class="input-group">
+              <div class="input-header">
+                <label for="lp-rate">運用利回り (年率)</label>
+                <div class="input-val-display"><span id="lp-rate-val">5.0</span> %</div>
+              </div>
+              <div class="slider-container">
+                <input type="range" id="lp-rate" min="0.1" max="15.0" step="0.1" value="5.0">
+                <input type="number" class="number-input" id="lp-rate-num" min="0" max="20" step="0.1" value="5.0">
+              </div>
+            </div>
+
+            <div class="input-group">
+              <div class="input-header">
+                <label for="lp-years">シミュレーション年数</label>
+                <div class="input-val-display"><span id="lp-years-val">30</span> 年</div>
+              </div>
+              <div class="slider-container">
+                <input type="range" id="lp-years" min="5" max="40" step="1" value="30">
+                <input type="number" class="number-input" id="lp-years-num" min="5" max="50" value="30">
+              </div>
+            </div>
+
+            <!-- Life Events List -->
+            <div class="events-management">
+              <div class="events-header">
+                <label class="section-label">
+                  <i data-lucide="milestone"></i> ライフイベント設定
+                </label>
+                <button type="button" class="btn btn-sm btn-accent" id="btn-add-event">
+                  <i data-lucide="plus"></i> イベント追加
+                </button>
+              </div>
+              <div class="events-list" id="events-list-container">
+                <!-- Events rendered by JS -->
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 5: シナリオ比較 -->
+          <div class="tab-content" id="tab-compare">
+            <div class="compare-plan-box">
+              <div class="plan-badge plan-a-badge">プラン A (堅実)</div>
+              <div class="input-grid-2">
+                <div class="input-group-compact">
+                  <label>毎月積立</label>
+                  <div class="input-unit">
+                    <input type="number" id="cmp-monthly-a" value="3" step="0.5" min="0">
+                    <span>万円</span>
+                  </div>
+                </div>
+                <div class="input-group-compact">
+                  <label>年利回り</label>
+                  <div class="input-unit">
+                    <input type="number" id="cmp-rate-a" value="3.0" step="0.1" min="0">
+                    <span>%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="compare-plan-box mt-3">
+              <div class="plan-badge plan-b-badge">プラン B (標準)</div>
+              <div class="input-grid-2">
+                <div class="input-group-compact">
+                  <label>毎月積立</label>
+                  <div class="input-unit">
+                    <input type="number" id="cmp-monthly-b" value="5" step="0.5" min="0">
+                    <span>万円</span>
+                  </div>
+                </div>
+                <div class="input-group-compact">
+                  <label>年利回り</label>
+                  <div class="input-unit">
+                    <input type="number" id="cmp-rate-b" value="5.0" step="0.1" min="0">
+                    <span>%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="compare-plan-box mt-3">
+              <div class="plan-badge plan-c-badge">プラン C (積極)</div>
+              <div class="input-grid-2">
+                <div class="input-group-compact">
+                  <label>毎月積立</label>
+                  <div class="input-unit">
+                    <input type="number" id="cmp-monthly-c" value="10" step="0.5" min="0">
+                    <span>万円</span>
+                  </div>
+                </div>
+                <div class="input-group-compact">
+                  <label>年利回り</label>
+                  <div class="input-unit">
+                    <input type="number" id="cmp-rate-c" value="7.0" step="0.1" min="0">
+                    <span>%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="input-group mt-3">
+              <div class="input-header">
+                <label for="cmp-years">比較年数</label>
+                <div class="input-val-display"><span id="cmp-years-val">25</span> 年</div>
+              </div>
+              <div class="slider-container">
+                <input type="range" id="cmp-years" min="1" max="40" step="1" value="25">
+                <input type="number" class="number-input" id="cmp-years-num" min="1" max="50" value="25">
+              </div>
+            </div>
+
+            <div class="input-group">
+              <div class="input-header">
+                <label for="cmp-initial">共通初期投資</label>
+                <div class="input-val-display"><span id="cmp-initial-val">100</span> 万円</div>
+              </div>
+              <div class="slider-container">
+                <input type="range" id="cmp-initial" min="0" max="2000" step="10" value="100">
+                <input type="number" class="number-input" id="cmp-initial-num" min="0" max="5000" value="100">
+              </div>
+            </div>
+          </div>
+        </form>
+      </aside>
+
+      <!-- Right Panel: Results, KPIs & Charts -->
+      <section class="results-panel">
+        <!-- KPI Overview Cards -->
+        <div class="kpi-grid" id="kpi-grid">
+          <!-- Card 1: Main Result -->
+          <div class="kpi-card highlight-card">
+            <div class="kpi-icon"><i data-lucide="wallet"></i></div>
+            <div class="kpi-content">
+              <span class="kpi-label" id="kpi-main-label">最終積立総額 (20年後)</span>
+              <div class="kpi-value-row">
+                <span class="kpi-val" id="kpi-total-val">0</span>
+                <span class="kpi-unit">万円</span>
+              </div>
+              <span class="kpi-sub" id="kpi-total-sub">（約 0 億円）</span>
+            </div>
+          </div>
+
+          <!-- Card 2: Investment Principal -->
+          <div class="kpi-card">
+            <div class="kpi-icon principal-icon"><i data-lucide="piggy-bank"></i></div>
+            <div class="kpi-content">
+              <span class="kpi-label" id="kpi-principal-label">投資元本累計</span>
+              <div class="kpi-value-row">
+                <span class="kpi-val" id="kpi-principal-val">0</span>
+                <span class="kpi-unit">万円</span>
+              </div>
+              <span class="kpi-sub" id="kpi-principal-pct">割合 0%</span>
+            </div>
+          </div>
+
+          <!-- Card 3: Investment Gain -->
+          <div class="kpi-card profit-card">
+            <div class="kpi-icon profit-icon"><i data-lucide="line-chart"></i></div>
+            <div class="kpi-content">
+              <span class="kpi-label" id="kpi-profit-label">運用収益 (リターン)</span>
+              <div class="kpi-value-row">
+                <span class="kpi-val text-profit" id="kpi-profit-val">+0</span>
+                <span class="kpi-unit text-profit">万円</span>
+              </div>
+              <span class="kpi-sub text-profit" id="kpi-profit-pct">+0.0%</span>
+            </div>
+          </div>
+
+          <!-- Card 4: NISA Tax Benefit or Monthly Requirement -->
+          <div class="kpi-card tax-card" id="kpi-aux-card">
+            <div class="kpi-icon aux-icon" id="kpi-aux-icon"><i data-lucide="shield-check"></i></div>
+            <div class="kpi-content">
+              <span class="kpi-label" id="kpi-aux-label">新NISA節税効果</span>
+              <div class="kpi-value-row">
+                <span class="kpi-val text-accent" id="kpi-aux-val">0</span>
+                <span class="kpi-unit text-accent" id="kpi-aux-unit">万円</span>
+              </div>
+              <span class="kpi-sub" id="kpi-aux-sub">非課税枠による節税メリット</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts Container -->
+        <div class="charts-card">
+          <div class="chart-header">
+            <div class="chart-title-area">
+              <h3 id="chart-main-title">資産推移シミュレーション</h3>
+              <p class="chart-subtitle" id="chart-main-subtitle">元本と複利運用益の年次推移</p>
+            </div>
+            <div class="chart-controls">
+              <div class="btn-group-toggle" id="chart-type-toggle">
+                <button class="btn-toggle active" data-chart-type="area">積み上げ面</button>
+                <button class="btn-toggle" data-chart-type="bar">棒グラフ</button>
+                <button class="btn-toggle" data-chart-type="line">折れ線</button>
+              </div>
+            </div>
+          </div>
+          
+          <div class="chart-layout-inner">
+            <div class="main-chart-box">
+              <canvas id="mainChart"></canvas>
+            </div>
+            <div class="donut-chart-box" id="donut-container">
+              <h4>資産内訳</h4>
+              <div class="donut-canvas-wrapper">
+                <canvas id="donutChart"></canvas>
+              </div>
+              <div class="donut-legend" id="donut-legend">
+                <div class="legend-row">
+                  <span class="legend-dot dot-principal"></span>
+                  <span class="legend-text">投資元本</span>
+                  <span class="legend-val" id="legend-principal-val">0万円</span>
+                </div>
+                <div class="legend-row">
+                  <span class="legend-dot dot-profit"></span>
+                  <span class="legend-text">運用収益</span>
+                  <span class="legend-val" id="legend-profit-val">0万円</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Key Milestones or Insights Box -->
+        <div class="insight-banner" id="insight-banner">
+          <div class="insight-icon"><i data-lucide="lightbulb"></i></div>
+          <div class="insight-text" id="insight-text">
+            20年間の複利効果により、元本に対して<strong>+1,586万円</strong>の利益が生まれました。
+          </div>
+        </div>
+
+        <!-- Detailed Data Table Accordion -->
+        <div class="table-card">
+          <div class="table-card-header">
+            <div class="table-title">
+              <i data-lucide="table"></i>
+              <span>年次別資産推移詳細</span>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline" id="btn-toggle-table">
+              <span id="toggle-table-text">表を表示する</span>
+              <i data-lucide="chevron-down" id="toggle-table-icon"></i>
+            </button>
+          </div>
+
+          <div class="table-wrapper hidden" id="table-container">
+            <table class="data-table" id="simulation-table">
+              <thead>
+                <tr>
+                  <th>経過年</th>
+                  <th>年齢</th>
+                  <th>投資累計額(元本)</th>
+                  <th>年間利息</th>
+                  <th>運用収益累計</th>
+                  <th>資産残高(税引前)</th>
+                  <th>新NISA非課税枠残高</th>
+                  <th>手取り資産残高</th>
+                </tr>
+              </thead>
+              <tbody id="simulation-table-body">
+                <!-- Rows rendered dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Modal for adding/editing Life Events -->
+    <div class="modal-overlay hidden" id="event-modal">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3 id="modal-title">ライフイベントの追加</h3>
+          <button class="btn-close" id="btn-close-modal"><i data-lucide="x"></i></button>
+        </div>
+        <div class="modal-body">
+          <div class="input-group">
+            <label for="event-name">イベント名</label>
+            <input type="text" id="event-name" class="text-input" placeholder="例: 住宅購入頭金、子どもの大学進学、退職金" value="マイホーム購入">
+          </div>
+
+          <div class="input-group">
+            <label for="event-year">発生時期 (何年後 / または年齢)</label>
+            <div class="input-grid-2">
+              <div class="input-unit">
+                <input type="number" id="event-year" class="text-input" min="1" max="50" value="5">
+                <span>年後</span>
+              </div>
+              <div class="event-preset-select">
+                <select id="event-preset-dropdown" class="select-input">
+                  <option value="">-- プリセットから選ぶ --</option>
+                  <option value="house" data-amount="-500" data-year="5">住宅購入頭金 (-500万)</option>
+                  <option value="edu" data-amount="-400" data-year="15">大学学費 (-400万)</option>
+                  <option value="car" data-amount="-300" data-year="3">自動車購入 (-300万)</option>
+                  <option value="marriage" data-amount="-200" data-year="2">結婚・新生活 (-200万)</option>
+                  <option value="retirement" data-amount="1500" data-year="30">退職金一時金 (+1,500万)</option>
+                  <option value="inheritance" data-amount="1000" data-year="20">相続・臨時収入 (+1,000万)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="input-group">
+            <label for="event-amount">収支金額 (支出はマイナス、収入はプラス)</label>
+            <div class="input-unit">
+              <input type="number" id="event-amount" class="text-input" step="10" value="-500">
+              <span>万円</span>
+            </div>
+            <p class="field-hint">例: 500万円の出費なら「-500」、1,000万円の退職金なら「1000」</p>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" id="btn-cancel-modal">キャンセル</button>
+          <button type="button" class="btn btn-primary" id="btn-save-event">保存する</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast hidden" id="toast">
+      <i data-lucide="check-circle" id="toast-icon"></i>
+      <span id="toast-message">設定を保存しました</span>
+    </div>
+  </div>
+
+  <!-- Custom Scripts -->
+  <script src="app.js"></script>
+</body>
+</html>
