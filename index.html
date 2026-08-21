@@ -3,659 +3,656 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>資産形成シミュレータ | Wealth Simulator Pro</title>
-  <meta name="description" content="新NISA対応、積立投資・ゴール逆算・FIRE取崩し・ライフイベント連動の多機能資産運用シミュレータ">
+  <title>マルチ口座 資産運用シミュレーター PRO</title>
+  <meta name="description" content="特定口座・旧NISA・新NISA・確定拠出年金・株式現物に対応した、ライフサイクル資産運用シミュレーター。退職所得控除やマイルストーン表、設定のJSON保存読込に対応。">
+  
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+  
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
+  
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
   <!-- Custom CSS -->
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <div class="app-container">
-    <!-- Header -->
+    <!-- App Header -->
     <header class="app-header">
-      <div class="header-left">
-        <div class="logo-icon">
-          <i data-lucide="trending-up"></i>
+      <div class="header-brand">
+        <div class="brand-icon">
+          <i data-lucide="line-chart"></i>
         </div>
-        <div class="header-titles">
-          <h1>資産形成シミュレータ <span class="badge-pro">PRO</span></h1>
-          <p class="subtitle">新NISA・FIRE・ライフプラン対応の次世代シミュレーション</p>
+        <div class="brand-text">
+          <div class="brand-title-row">
+            <h1>資産運用シミュレーター <span class="badge-pro">PRO</span></h1>
+          </div>
+          <p class="brand-subtitle">マルチ口座・現行退職控除・マイルストーン対応の総合ライフサイクル設計</p>
         </div>
       </div>
+
       <div class="header-actions">
-        <button id="btn-theme-toggle" class="btn-icon" title="テーマ切り替え" aria-label="テーマ切り替え">
-          <i data-lucide="sun" id="theme-icon-light" class="hidden"></i>
-          <i data-lucide="moon" id="theme-icon-dark"></i>
-        </button>
-        <button id="btn-export-csv" class="btn btn-secondary">
+        <!-- JSON Export / Import -->
+        <button id="btn-save-json" class="btn btn-primary" title="設定をJSONファイルとして保存">
           <i data-lucide="download"></i>
+          <span>設定保存 (JSON)</span>
+        </button>
+        <button id="btn-load-json" class="btn btn-secondary" title="保存したJSONファイルを読み込む">
+          <i data-lucide="upload"></i>
+          <span>設定読込 (JSON)</span>
+        </button>
+        <input type="file" id="input-file-json" accept=".json" style="display: none;">
+
+        <button id="btn-export-csv" class="btn btn-outline" title="詳細データをCSV形式で出力">
+          <i data-lucide="file-spreadsheet"></i>
           <span>CSV出力</span>
         </button>
-        <button id="btn-reset" class="btn btn-outline" title="設定を初期化">
+
+        <button id="btn-theme-toggle" class="btn-icon" title="テーマ切り替え (ダーク/ライト)" aria-label="テーマ切り替え">
+          <i data-lucide="sun" id="icon-theme-light" class="hidden"></i>
+          <i data-lucide="moon" id="icon-theme-dark"></i>
+        </button>
+
+        <button id="btn-reset-all" class="btn-icon btn-danger-icon" title="初期設定に戻す" aria-label="初期設定に戻す">
           <i data-lucide="rotate-ccw"></i>
-          <span>リセット</span>
         </button>
       </div>
     </header>
 
-    <!-- Navigation Tabs -->
-    <nav class="nav-tabs" role="tablist">
-      <button class="nav-tab active" data-tab="accumulate" role="tab" aria-selected="true">
-        <i data-lucide="coins"></i>
-        <span>積立投資・新NISA</span>
-      </button>
-      <button class="nav-tab" data-tab="goal" role="tab" aria-selected="false">
-        <i data-lucide="target"></i>
-        <span>目標金額から逆算</span>
-      </button>
-      <button class="nav-tab" data-tab="fire" role="tab" aria-selected="false">
-        <i data-lucide="flame"></i>
-        <span>FIRE・資産取り崩し</span>
-      </button>
-      <button class="nav-tab" data-tab="lifeplan" role="tab" aria-selected="false">
-        <i data-lucide="calendar-heart"></i>
-        <span>ライフイベント連動</span>
-      </button>
-      <button class="nav-tab" data-tab="compare" role="tab" aria-selected="false">
-        <i data-lucide="git-compare"></i>
-        <span>シナリオ比較</span>
-      </button>
-    </nav>
-
-    <!-- Main Content Grid -->
-    <main class="main-layout">
-      <!-- Left Panel: Controls & Inputs -->
-      <aside class="control-panel">
-        <!-- Quick Presets -->
-        <div class="panel-section presets-section" id="presets-container">
-          <label class="section-label">
-            <i data-lucide="sparkles"></i> 人気プリセット
-          </label>
-          <div class="preset-chips">
-            <button class="preset-chip" data-preset="all-country">オルカン積立 (年利5%/月5万)</button>
-            <button class="preset-chip" data-preset="sp500">S&P500積極 (年利7%/月10万)</button>
-            <button class="preset-chip" data-preset="nisa-max">新NISA最速枠埋め (月30万×5年)</button>
-            <button class="preset-chip" data-preset="starter">少額スタート (年利4%/月1万)</button>
+    <!-- Main Workspace Layout -->
+    <div class="main-workspace">
+      <!-- Left Panel: Input Controls -->
+      <aside class="sidebar-panel">
+        <!-- Preset Selector -->
+        <div class="panel-card preset-card">
+          <div class="card-header">
+            <span class="card-title"><i data-lucide="sparkles"></i> プリセットシナリオ</span>
+          </div>
+          <div class="preset-buttons">
+            <button type="button" class="btn-preset active" data-preset="standard">
+              <span class="preset-name">標準会社員 (NISA+DC)</span>
+              <span class="preset-desc">35歳 / 新NISA月5万 / iDeCo月2.3万 / 年金受給65歳</span>
+            </button>
+            <button type="button" class="btn-preset" data-preset="fire">
+              <span class="preset-name">FIRE・積極投資</span>
+              <span class="preset-desc">30歳 / 新NISA満額+特定 / 55歳早期取崩し</span>
+            </button>
+            <button type="button" class="btn-preset" data-preset="stock-focused">
+              <span class="preset-name">現物株・高配当重視</span>
+              <span class="preset-desc">現物株温存 / 新NISA積立 / 65歳定額取崩し</span>
+            </button>
+            <button type="button" class="btn-preset" data-preset="senior">
+              <span class="preset-name">シニア・退職目前</span>
+              <span class="preset-desc">55歳 / 旧NISA移管あり / 60歳退職金受取</span>
+            </button>
           </div>
         </div>
 
-        <!-- Dynamic Tab Input Forms -->
-        <form id="simulator-form" onsubmit="event.preventDefault();">
-          <!-- TAB 1: 積立投資 -->
-          <div class="tab-content active" id="tab-accumulate">
-            <div class="input-group">
-              <div class="input-header">
-                <label for="acc-initial">初期投資額</label>
-                <div class="input-val-display"><span id="acc-initial-val">100</span> 万円</div>
-              </div>
-              <div class="slider-container">
-                <input type="range" id="acc-initial" min="0" max="3000" step="10" value="100">
-                <input type="number" class="number-input" id="acc-initial-num" min="0" max="10000" value="100">
-              </div>
+        <form id="sim-form" onsubmit="event.preventDefault();">
+          <!-- 1. 基本設定 (現在の年齢) -->
+          <div class="panel-card">
+            <div class="card-header">
+              <span class="card-title"><i data-lucide="user"></i> 基本プロファイル</span>
             </div>
-
-            <div class="input-group">
-              <div class="input-header">
-                <label for="acc-monthly">毎月の積立額</label>
-                <div class="input-val-display"><span id="acc-monthly-val">5.0</span> 万円/月</div>
+            <div class="form-group">
+              <div class="label-row">
+                <label for="input-current-age">現在の年齢</label>
+                <span class="val-badge"><strong id="disp-current-age">35</strong> 歳</span>
               </div>
-              <div class="slider-container">
-                <input type="range" id="acc-monthly" min="0" max="50" step="0.5" value="5.0">
-                <input type="number" class="number-input" id="acc-monthly-num" min="0" max="200" step="0.5" value="5.0">
-              </div>
-            </div>
-
-            <div class="input-group">
-              <div class="input-header">
-                <label for="acc-rate">想定利回り (年率)</label>
-                <div class="input-val-display"><span id="acc-rate-val">5.0</span> %</div>
-              </div>
-              <div class="slider-container">
-                <input type="range" id="acc-rate" min="0.1" max="15.0" step="0.1" value="5.0">
-                <input type="number" class="number-input" id="acc-rate-num" min="0" max="30" step="0.1" value="5.0">
-              </div>
-            </div>
-
-            <div class="input-group">
-              <div class="input-header">
-                <label for="acc-years">積立期間</label>
-                <div class="input-val-display"><span id="acc-years-val">20</span> 年</div>
-              </div>
-              <div class="slider-container">
-                <input type="range" id="acc-years" min="1" max="40" step="1" value="20">
-                <input type="number" class="number-input" id="acc-years-num" min="1" max="50" value="20">
-              </div>
-            </div>
-
-            <div class="input-group">
-              <div class="input-header">
-                <label for="acc-start-age">現在の年齢 (開始年齢)</label>
-                <div class="input-val-display"><span id="acc-start-age-val">30</span> 歳</div>
-              </div>
-              <div class="slider-container">
-                <input type="range" id="acc-start-age" min="18" max="80" step="1" value="30">
-                <input type="number" class="number-input" id="acc-start-age-num" min="18" max="100" value="30">
-              </div>
-            </div>
-
-            <!-- Advanced Options Accordion -->
-            <div class="advanced-box">
-              <button type="button" class="btn-accordion" id="btn-acc-advanced">
-                <span>税金・インフレ詳細設定</span>
-                <i data-lucide="chevron-down" class="acc-arrow"></i>
-              </button>
-              <div class="accordion-body hidden" id="acc-advanced-body">
-                <div class="toggle-option">
-                  <label class="switch">
-                    <input type="checkbox" id="acc-nisa-enabled" checked>
-                    <span class="slider-round"></span>
-                  </label>
-                  <div class="toggle-label">
-                    <div class="toggle-title">新NISA非課税枠を適用 (上限1,800万円)</div>
-                    <div class="toggle-desc">超過分は特定口座 (税率20.315%) として計算</div>
-                  </div>
-                </div>
-
-                <div class="input-group mt-3">
-                  <div class="input-header">
-                    <label for="acc-inflation">想定インフレ率 (年率)</label>
-                    <div class="input-val-display"><span id="acc-inflation-val">0.0</span> %</div>
-                  </div>
-                  <div class="slider-container">
-                    <input type="range" id="acc-inflation" min="0" max="5.0" step="0.5" value="0.0">
-                    <input type="number" class="number-input" id="acc-inflation-num" min="0" max="10" step="0.5" value="0.0">
-                  </div>
-                </div>
+              <div class="range-row">
+                <input type="range" id="range-current-age" min="20" max="80" step="1" value="35">
+                <input type="number" id="input-current-age" class="num-input" min="20" max="99" value="35">
               </div>
             </div>
           </div>
 
-          <!-- TAB 2: 目標金額から逆算 -->
-          <div class="tab-content" id="tab-goal">
-            <div class="input-group">
-              <div class="input-header">
-                <label for="goal-target">目標資産額</label>
-                <div class="input-val-display"><span id="goal-target-val">3000</span> 万円</div>
+          <!-- 2. 口座別設定 (5大口座) -->
+          <div class="panel-card">
+            <div class="card-header">
+              <span class="card-title"><i data-lucide="wallet"></i> 保有口座ごとの設定</span>
+              <span class="badge-sub">全口座で現在保有資産の入力可能</span>
+            </div>
+
+            <!-- ① 特定口座 -->
+            <div class="account-box acc-taxable">
+              <div class="acc-header" data-toggle="acc-taxable-body">
+                <div class="acc-title">
+                  <span class="acc-indicator dot-taxable"></span>
+                  <span class="acc-name">特定口座 (課税)</span>
+                  <span class="acc-tag tag-taxable">取崩し優先 第1位</span>
+                </div>
+                <div class="acc-quick-sum">
+                  <span id="sum-taxable">初期 100万 / 積立 2万</span>
+                  <i data-lucide="chevron-down" class="acc-chevron"></i>
+                </div>
               </div>
-              <div class="slider-container">
-                <input type="range" id="goal-target" min="500" max="20000" step="100" value="3000">
-                <input type="number" class="number-input" id="goal-target-num" min="100" max="50000" value="3000">
+              <div class="acc-body" id="acc-taxable-body">
+                <div class="form-group">
+                  <div class="label-row">
+                    <label for="taxable-initial">現在所有している資産額</label>
+                    <span class="val-badge"><strong id="disp-taxable-initial">100</strong> 万円</span>
+                  </div>
+                  <div class="range-row">
+                    <input type="range" id="range-taxable-initial" min="0" max="3000" step="10" value="100">
+                    <input type="number" id="taxable-initial" class="num-input" min="0" max="50000" value="100">
+                  </div>
+                </div>
+                <div class="form-grid-2">
+                  <div class="form-group">
+                    <div class="label-row">
+                      <label for="taxable-monthly">毎月の積立額</label>
+                      <span class="val-badge"><strong id="disp-taxable-monthly">2.0</strong> 万円/月</span>
+                    </div>
+                    <input type="number" id="taxable-monthly" class="num-input w-full" min="0" max="500" step="0.5" value="2.0">
+                  </div>
+                  <div class="form-group">
+                    <div class="label-row">
+                      <label for="taxable-rate">想定利回り</label>
+                      <span class="val-badge"><strong id="disp-taxable-rate">5.0</strong> %/年</span>
+                    </div>
+                    <input type="number" id="taxable-rate" class="num-input w-full" min="0" max="30" step="0.1" value="5.0">
+                  </div>
+                </div>
+                <div class="form-group">
+                  <div class="label-row">
+                    <label for="taxable-end-age">積立終了年齢</label>
+                    <span class="val-badge"><strong id="disp-taxable-end-age">60</strong> 歳まで</span>
+                  </div>
+                  <input type="number" id="taxable-end-age" class="num-input w-full" min="20" max="100" value="60">
+                </div>
+                <p class="input-hint">※運用益・売却益に20.315%課税。DC退職金手取り金および旧NISA満了資金の受入先となります。</p>
               </div>
             </div>
 
-            <div class="input-group">
-              <div class="input-header">
-                <label for="goal-years">目標達成までの年数</label>
-                <div class="input-val-display"><span id="goal-years-val">20</span> 年</div>
+            <!-- ② 旧NISA口座 -->
+            <div class="account-box acc-oldnisa">
+              <div class="acc-header" data-toggle="acc-oldnisa-body">
+                <div class="acc-title">
+                  <span class="acc-indicator dot-oldnisa"></span>
+                  <span class="acc-name">旧NISA口座</span>
+                  <span class="acc-tag tag-oldnisa">特定口座へ非課税移管</span>
+                </div>
+                <div class="acc-quick-sum">
+                  <span id="sum-oldnisa">初期 200万 / 5年後移管</span>
+                  <i data-lucide="chevron-down" class="acc-chevron"></i>
+                </div>
               </div>
-              <div class="slider-container">
-                <input type="range" id="goal-years" min="1" max="40" step="1" value="20">
-                <input type="number" class="number-input" id="goal-years-num" min="1" max="50" value="20">
+              <div class="acc-body" id="acc-oldnisa-body">
+                <div class="form-group">
+                  <div class="label-row">
+                    <label for="oldnisa-initial">現在所有している資産額</label>
+                    <span class="val-badge"><strong id="disp-oldnisa-initial">200</strong> 万円</span>
+                  </div>
+                  <div class="range-row">
+                    <input type="range" id="range-oldnisa-initial" min="0" max="2000" step="10" value="200">
+                    <input type="number" id="oldnisa-initial" class="num-input" min="0" max="10000" value="200">
+                  </div>
+                </div>
+                <div class="form-grid-2">
+                  <div class="form-group">
+                    <div class="label-row">
+                      <label for="oldnisa-rate">想定利回り</label>
+                      <span class="val-badge"><strong id="disp-oldnisa-rate">5.0</strong> %/年</span>
+                    </div>
+                    <input type="number" id="oldnisa-rate" class="num-input w-full" min="0" max="30" step="0.1" value="5.0">
+                  </div>
+                  <div class="form-group">
+                    <div class="label-row">
+                      <label for="oldnisa-transfer-age">特定口座への移管年齢</label>
+                      <span class="val-badge"><strong id="disp-oldnisa-transfer-age">40</strong> 歳時点</span>
+                    </div>
+                    <input type="number" id="oldnisa-transfer-age" class="num-input w-full" min="20" max="100" value="40">
+                  </div>
+                </div>
+                <p class="input-hint">※非課税期間満了時（指定年齢）に、その時点の時価のまま<strong>非課税で特定口座へ全額移管</strong>されます。</p>
               </div>
             </div>
 
-            <div class="input-group">
-              <div class="input-header">
-                <label for="goal-initial">現在の準備資金 (初期投資)</label>
-                <div class="input-val-display"><span id="goal-initial-val">100</span> 万円</div>
+            <!-- ③ 新NISA口座 -->
+            <div class="account-box acc-newnisa">
+              <div class="acc-header" data-toggle="acc-newnisa-body">
+                <div class="acc-title">
+                  <span class="acc-indicator dot-newnisa"></span>
+                  <span class="acc-name">新NISA口座</span>
+                  <span class="acc-tag tag-newnisa">無期限非課税 (1,800万枠)</span>
+                </div>
+                <div class="acc-quick-sum">
+                  <span id="sum-newnisa">初期 300万 / 積立 5万</span>
+                  <i data-lucide="chevron-down" class="acc-chevron"></i>
+                </div>
               </div>
-              <div class="slider-container">
-                <input type="range" id="goal-initial" min="0" max="3000" step="10" value="100">
-                <input type="number" class="number-input" id="goal-initial-num" min="0" max="10000" value="100">
+              <div class="acc-body" id="acc-newnisa-body">
+                <div class="form-group">
+                  <div class="label-row">
+                    <label for="newnisa-initial">現在所有している資産額</label>
+                    <span class="val-badge"><strong id="disp-newnisa-initial">300</strong> 万円</span>
+                  </div>
+                  <div class="range-row">
+                    <input type="range" id="range-newnisa-initial" min="0" max="1800" step="10" value="300">
+                    <input type="number" id="newnisa-initial" class="num-input" min="0" max="1800" value="300">
+                  </div>
+                </div>
+                <div class="form-grid-2">
+                  <div class="form-group">
+                    <div class="label-row">
+                      <label for="newnisa-monthly">毎月の積立額</label>
+                      <span class="val-badge"><strong id="disp-newnisa-monthly">5.0</strong> 万円/月</span>
+                    </div>
+                    <input type="number" id="newnisa-monthly" class="num-input w-full" min="0" max="100" step="0.5" value="5.0">
+                  </div>
+                  <div class="form-group">
+                    <div class="label-row">
+                      <label for="newnisa-rate">想定利回り</label>
+                      <span class="val-badge"><strong id="disp-newnisa-rate">5.0</strong> %/年</span>
+                    </div>
+                    <input type="number" id="newnisa-rate" class="num-input w-full" min="0" max="30" step="0.1" value="5.0">
+                  </div>
+                </div>
+                <div class="form-group">
+                  <div class="label-row">
+                    <label for="newnisa-end-age">積立終了年齢</label>
+                    <span class="val-badge"><strong id="disp-newnisa-end-age">60</strong> 歳まで</span>
+                  </div>
+                  <input type="number" id="newnisa-end-age" class="num-input w-full" min="20" max="100" value="60">
+                </div>
+                <!-- 枠上限プログレス -->
+                <div class="nisa-progress-box">
+                  <div class="nisa-progress-labels">
+                    <span>生涯投資枠 (上限1,800万円)</span>
+                    <span id="nisa-limit-fill-info">300万 / 1,800万</span>
+                  </div>
+                  <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" id="nisa-limit-fill" style="width: 16.6%;"></div>
+                  </div>
+                </div>
+                <p class="input-hint">※元本累計が1,800万円に達すると積立は自動停止し、非課税運用のまま継続されます。</p>
               </div>
             </div>
 
-            <div class="input-group">
-              <div class="input-header">
-                <label for="goal-rate">想定利回り (年率)</label>
-                <div class="input-val-display"><span id="goal-rate-val">5.0</span> %</div>
+            <!-- ④ 確定拠出年金 (DC/iDeCo) -->
+            <div class="account-box acc-dc">
+              <div class="acc-header" data-toggle="acc-dc-body">
+                <div class="acc-title">
+                  <span class="acc-indicator dot-dc"></span>
+                  <span class="acc-name">確定拠出年金 (DC / iDeCo)</span>
+                  <span class="acc-tag tag-dc">現行退職所得控除</span>
+                </div>
+                <div class="acc-quick-sum">
+                  <span id="sum-dc">初期 150万 / 拠出 2.3万</span>
+                  <i data-lucide="chevron-down" class="acc-chevron"></i>
+                </div>
               </div>
-              <div class="slider-container">
-                <input type="range" id="goal-rate" min="0.1" max="15.0" step="0.1" value="5.0">
-                <input type="number" class="number-input" id="goal-rate-num" min="0" max="30" step="0.1" value="5.0">
+              <div class="acc-body" id="acc-dc-body">
+                <div class="form-group">
+                  <div class="label-row">
+                    <label for="dc-initial">現在所有している資産額</label>
+                    <span class="val-badge"><strong id="disp-dc-initial">150</strong> 万円</span>
+                  </div>
+                  <div class="range-row">
+                    <input type="range" id="range-dc-initial" min="0" max="3000" step="10" value="150">
+                    <input type="number" id="dc-initial" class="num-input" min="0" max="10000" value="150">
+                  </div>
+                </div>
+                <div class="form-grid-2">
+                  <div class="form-group">
+                    <div class="label-row">
+                      <label for="dc-monthly">毎月の拠出額</label>
+                      <span class="val-badge"><strong id="disp-dc-monthly">2.3</strong> 万円/月</span>
+                    </div>
+                    <input type="number" id="dc-monthly" class="num-input w-full" min="0" max="20" step="0.1" value="2.3">
+                  </div>
+                  <div class="form-group">
+                    <div class="label-row">
+                      <label for="dc-rate">想定利回り</label>
+                      <span class="val-badge"><strong id="disp-dc-rate">4.5</strong> %/年</span>
+                    </div>
+                    <input type="number" id="dc-rate" class="num-input w-full" min="0" max="30" step="0.1" value="4.5">
+                  </div>
+                </div>
+                <div class="form-grid-2">
+                  <div class="form-group">
+                    <div class="label-row">
+                      <label for="dc-end-age">拠出終了年齢</label>
+                      <span class="val-badge"><strong id="disp-dc-end-age">60</strong> 歳まで</span>
+                    </div>
+                    <input type="number" id="dc-end-age" class="num-input w-full" min="20" max="75" value="60">
+                  </div>
+                  <div class="form-group">
+                    <div class="label-row">
+                      <label for="dc-receive-age">退職金受取年齢</label>
+                      <span class="val-badge"><strong id="disp-dc-receive-age">60</strong> 歳受取</span>
+                    </div>
+                    <input type="number" id="dc-receive-age" class="num-input w-full" min="60" max="75" value="60">
+                  </div>
+                </div>
+                <div class="form-group">
+                  <div class="label-row">
+                    <label for="dc-years-past">これまでの拠出年数 (勤続年数)</label>
+                    <span class="val-badge"><strong id="disp-dc-years-past">5</strong> 年済</span>
+                  </div>
+                  <input type="number" id="dc-years-past" class="num-input w-full" min="0" max="50" value="5">
+                </div>
+                <!-- 退職控除計算プレビュー -->
+                <div class="dc-calc-preview" id="dc-calc-preview-box">
+                  <div class="preview-title"><i data-lucide="calculator"></i> 退職控除・移管シミュレーション</div>
+                  <div class="preview-grid">
+                    <div>受取時総残高: <strong id="preview-dc-total">-</strong> 万円</div>
+                    <div>拠出年数: <strong id="preview-dc-years">-</strong> 年</div>
+                    <div>退職所得控除: <strong id="preview-dc-deduction">-</strong> 万円</div>
+                    <div>所得税・住民税計: <strong id="preview-dc-tax" class="text-danger">-</strong> 万円</div>
+                    <div class="col-span-2 highlight-transfer">特定口座への移管手取り額: <strong id="preview-dc-net" class="text-success">-</strong> 万円</div>
+                  </div>
+                </div>
+                <p class="input-hint">※現行の退職所得控除制（20年以下:40万/年、20年超:800万+70万/年、課税1/2）で税額を算出し、<strong>手取り額が特定口座へ移管</strong>されます。</p>
+              </div>
+            </div>
+
+            <!-- ⑤ 株式現物口座 -->
+            <div class="account-box acc-stock">
+              <div class="acc-header" data-toggle="acc-stock-body">
+                <div class="acc-title">
+                  <span class="acc-indicator dot-stock"></span>
+                  <span class="acc-name">株式現物口座</span>
+                  <span class="acc-tag tag-stock">原則取崩し対象外</span>
+                </div>
+                <div class="acc-quick-sum">
+                  <span id="sum-stock">初期 200万 / 積立 0万</span>
+                  <i data-lucide="chevron-down" class="acc-chevron"></i>
+                </div>
+              </div>
+              <div class="acc-body" id="acc-stock-body">
+                <div class="form-group">
+                  <div class="label-row">
+                    <label for="stock-initial">現在所有している資産額</label>
+                    <span class="val-badge"><strong id="disp-stock-initial">200</strong> 万円</span>
+                  </div>
+                  <div class="range-row">
+                    <input type="range" id="range-stock-initial" min="0" max="3000" step="10" value="200">
+                    <input type="number" id="stock-initial" class="num-input" min="0" max="50000" value="200">
+                  </div>
+                </div>
+                <div class="form-grid-2">
+                  <div class="form-group">
+                    <div class="label-row">
+                      <label for="stock-monthly">毎月の買増額</label>
+                      <span class="val-badge"><strong id="disp-stock-monthly">0.0</strong> 万円/月</span>
+                    </div>
+                    <input type="number" id="stock-monthly" class="num-input w-full" min="0" max="100" step="0.5" value="0.0">
+                  </div>
+                  <div class="form-group">
+                    <div class="label-row">
+                      <label for="stock-rate">想定利回り (配当+値上)</label>
+                      <span class="val-badge"><strong id="disp-stock-rate">4.0</strong> %/年</span>
+                    </div>
+                    <input type="number" id="stock-rate" class="num-input w-full" min="0" max="30" step="0.1" value="4.0">
+                  </div>
+                </div>
+                <p class="input-hint">※株式現物口座は<strong>原則取り崩し対象外</strong>です。総資産やマイルストーンには計上されますが、生活費取り崩しで売却されず温存されます。</p>
               </div>
             </div>
           </div>
 
-          <!-- TAB 3: FIRE・資産取り崩し -->
-          <div class="tab-content" id="tab-fire">
-            <div class="input-group">
-              <div class="input-header">
-                <label for="fire-assets">リタイア時資産額</label>
-                <div class="input-val-display"><span id="fire-assets-val">5000</span> 万円</div>
+          <!-- 3. 国の年金 (公的年金) -->
+          <div class="panel-card">
+            <div class="card-header">
+              <span class="card-title"><i data-lucide="landmark"></i> 国の年金 (公的年金)</span>
+            </div>
+            <div class="form-grid-2">
+              <div class="form-group">
+                <div class="label-row">
+                  <label for="pension-start-age">受給開始年齢</label>
+                  <span class="val-badge"><strong id="disp-pension-start-age">65</strong> 歳</span>
+                </div>
+                <input type="number" id="pension-start-age" class="num-input w-full" min="60" max="75" value="65">
               </div>
-              <div class="slider-container">
-                <input type="range" id="fire-assets" min="1000" max="30000" step="100" value="5000">
-                <input type="number" class="number-input" id="fire-assets-num" min="500" max="50000" value="5000">
+              <div class="form-group">
+                <div class="label-row">
+                  <label for="pension-monthly">受給額 (月額換算)</label>
+                  <span class="val-badge"><strong id="disp-pension-monthly">15.0</strong> 万円/月</span>
+                </div>
+                <input type="number" id="pension-monthly" class="num-input w-full" min="0" max="100" step="0.5" value="15.0">
               </div>
             </div>
-
-            <div class="input-group">
-              <label class="sub-label">取り崩し方式</label>
-              <div class="radio-pill-group">
-                <label class="radio-pill">
-                  <input type="radio" name="fire-type" value="fixed-amount" checked>
-                  <span>定額取り崩し (毎月定額)</span>
-                </label>
-                <label class="radio-pill">
-                  <input type="radio" name="fire-type" value="fixed-rate">
-                  <span>定率取り崩し (4%ルール等)</span>
-                </label>
-              </div>
-            </div>
-
-            <div class="input-group" id="fire-fixed-amount-group">
-              <div class="input-header">
-                <label for="fire-monthly">毎月の取り崩し額</label>
-                <div class="input-val-display"><span id="fire-monthly-val">20.0</span> 万円/月</div>
-              </div>
-              <div class="slider-container">
-                <input type="range" id="fire-monthly" min="5" max="100" step="1" value="20">
-                <input type="number" class="number-input" id="fire-monthly-num" min="1" max="200" value="20">
-              </div>
-            </div>
-
-            <div class="input-group hidden" id="fire-fixed-rate-group">
-              <div class="input-header">
-                <label for="fire-rate-pct">年間取り崩し率</label>
-                <div class="input-val-display"><span id="fire-rate-pct-val">4.0</span> %/年</div>
-              </div>
-              <div class="slider-container">
-                <input type="range" id="fire-rate-pct" min="1.0" max="10.0" step="0.5" value="4.0">
-                <input type="number" class="number-input" id="fire-rate-pct-num" min="0.5" max="20" step="0.1" value="4.0">
-              </div>
-            </div>
-
-            <div class="input-group">
-              <div class="input-header">
-                <label for="fire-return-rate">リタイア後の運用利回り</label>
-                <div class="input-val-display"><span id="fire-return-rate-val">3.0</span> %</div>
-              </div>
-              <div class="slider-container">
-                <input type="range" id="fire-return-rate" min="0.0" max="10.0" step="0.5" value="3.0">
-                <input type="number" class="number-input" id="fire-return-rate-num" min="0" max="20" step="0.1" value="3.0">
-              </div>
-            </div>
-
-            <div class="input-group">
-              <div class="input-header">
-                <label for="fire-start-age">取り崩し開始年齢</label>
-                <div class="input-val-display"><span id="fire-start-age-val">60</span> 歳</div>
-              </div>
-              <div class="slider-container">
-                <input type="range" id="fire-start-age" min="30" max="80" step="1" value="60">
-                <input type="number" class="number-input" id="fire-start-age-num" min="20" max="90" value="60">
-              </div>
-            </div>
-
-            <div class="input-group">
-              <div class="input-header">
-                <label for="fire-years">シミュレーション年数</label>
-                <div class="input-val-display"><span id="fire-years-val">35</span> 年</div>
-              </div>
-              <div class="slider-container">
-                <input type="range" id="fire-years" min="10" max="50" step="1" value="35">
-                <input type="number" class="number-input" id="fire-years-num" min="5" max="60" value="35">
-              </div>
-            </div>
+            <p class="input-hint">※年額 <span id="disp-pension-annual">180</span> 万円が受給開始年齢から100歳までキャッシュインされます。</p>
           </div>
 
-          <!-- TAB 4: ライフイベント連動 -->
-          <div class="tab-content" id="tab-lifeplan">
-            <div class="input-group">
-              <div class="input-header">
-                <label for="lp-initial">初期資産</label>
-                <div class="input-val-display"><span id="lp-initial-val">200</span> 万円</div>
+          <!-- 4. 取り崩し設定 (FIRE・老後生活費) -->
+          <div class="panel-card">
+            <div class="card-header">
+              <span class="card-title"><i data-lucide="hand-coins"></i> 資産の取り崩し設定</span>
+              <span class="badge-priority">特定口座 → 旧NISA → 新NISA順</span>
+            </div>
+            
+            <div class="form-group">
+              <div class="label-row">
+                <label for="withdraw-start-age">取り崩し開始年齢</label>
+                <span class="val-badge"><strong id="disp-withdraw-start-age">65</strong> 歳</span>
               </div>
-              <div class="slider-container">
-                <input type="range" id="lp-initial" min="0" max="3000" step="10" value="200">
-                <input type="number" class="number-input" id="lp-initial-num" min="0" max="10000" value="200">
+              <div class="range-row">
+                <input type="range" id="range-withdraw-start-age" min="40" max="80" step="1" value="65">
+                <input type="number" id="withdraw-start-age" class="num-input" min="40" max="90" value="65">
               </div>
             </div>
 
-            <div class="input-group">
-              <div class="input-header">
-                <label for="lp-monthly">基本の毎月積立額</label>
-                <div class="input-val-display"><span id="lp-monthly-val">6.0</span> 万円/月</div>
-              </div>
-              <div class="slider-container">
-                <input type="range" id="lp-monthly" min="0" max="50" step="0.5" value="6.0">
-                <input type="number" class="number-input" id="lp-monthly-num" min="0" max="100" step="0.5" value="6.0">
-              </div>
-            </div>
-
-            <div class="input-group">
-              <div class="input-header">
-                <label for="lp-rate">運用利回り (年率)</label>
-                <div class="input-val-display"><span id="lp-rate-val">5.0</span> %</div>
-              </div>
-              <div class="slider-container">
-                <input type="range" id="lp-rate" min="0.1" max="15.0" step="0.1" value="5.0">
-                <input type="number" class="number-input" id="lp-rate-num" min="0" max="20" step="0.1" value="5.0">
-              </div>
-            </div>
-
-            <div class="input-group">
-              <div class="input-header">
-                <label for="lp-years">シミュレーション年数</label>
-                <div class="input-val-display"><span id="lp-years-val">30</span> 年</div>
-              </div>
-              <div class="slider-container">
-                <input type="range" id="lp-years" min="5" max="40" step="1" value="30">
-                <input type="number" class="number-input" id="lp-years-num" min="5" max="50" value="30">
-              </div>
-            </div>
-
-            <!-- Life Events List -->
-            <div class="events-management">
-              <div class="events-header">
-                <label class="section-label">
-                  <i data-lucide="milestone"></i> ライフイベント設定
-                </label>
-                <button type="button" class="btn btn-sm btn-accent" id="btn-add-event">
-                  <i data-lucide="plus"></i> イベント追加
-                </button>
-              </div>
-              <div class="events-list" id="events-list-container">
-                <!-- Events rendered by JS -->
-              </div>
-            </div>
-          </div>
-
-          <!-- TAB 5: シナリオ比較 -->
-          <div class="tab-content" id="tab-compare">
-            <div class="compare-plan-box">
-              <div class="plan-badge plan-a-badge">プラン A (堅実)</div>
-              <div class="input-grid-2">
-                <div class="input-group-compact">
-                  <label>毎月積立</label>
-                  <div class="input-unit">
-                    <input type="number" id="cmp-monthly-a" value="3" step="0.5" min="0">
-                    <span>万円</span>
-                  </div>
+            <!-- 取り崩し方式ラジオ -->
+            <div class="withdraw-type-selector">
+              <label class="radio-card">
+                <input type="radio" name="withdraw-type" value="fixed-amount" checked>
+                <div class="radio-content">
+                  <span class="radio-title"><i data-lucide="banknote"></i> 定額取り崩し</span>
+                  <span class="radio-desc">毎月/年間の指定額を取り崩す</span>
                 </div>
-                <div class="input-group-compact">
-                  <label>年利回り</label>
-                  <div class="input-unit">
-                    <input type="number" id="cmp-rate-a" value="3.0" step="0.1" min="0">
-                    <span>%</span>
-                  </div>
+              </label>
+              <label class="radio-card">
+                <input type="radio" name="withdraw-type" value="fixed-rate">
+                <div class="radio-content">
+                  <span class="radio-title"><i data-lucide="percent"></i> 定率取り崩し</span>
+                  <span class="radio-desc">対象資産残高の一定割合(%)を取り崩す</span>
                 </div>
-              </div>
+              </label>
             </div>
 
-            <div class="compare-plan-box mt-3">
-              <div class="plan-badge plan-b-badge">プラン B (標準)</div>
-              <div class="input-grid-2">
-                <div class="input-group-compact">
-                  <label>毎月積立</label>
-                  <div class="input-unit">
-                    <input type="number" id="cmp-monthly-b" value="5" step="0.5" min="0">
-                    <span>万円</span>
-                  </div>
-                </div>
-                <div class="input-group-compact">
-                  <label>年利回り</label>
-                  <div class="input-unit">
-                    <input type="number" id="cmp-rate-b" value="5.0" step="0.1" min="0">
-                    <span>%</span>
-                  </div>
-                </div>
+            <!-- 定額取り崩しの場合の入力 -->
+            <div id="box-withdraw-amount" class="form-group">
+              <div class="label-row">
+                <label for="withdraw-monthly">毎月の取り崩し希望額</label>
+                <span class="val-badge"><strong id="disp-withdraw-monthly">20.0</strong> 万円/月</span>
               </div>
+              <div class="range-row">
+                <input type="range" id="range-withdraw-monthly" min="1" max="100" step="0.5" value="20.0">
+                <input type="number" id="withdraw-monthly" class="num-input" min="1" max="500" step="0.5" value="20.0">
+              </div>
+              <p class="input-hint">※年間取り崩し額: <span id="disp-withdraw-annual">240</span> 万円</p>
             </div>
 
-            <div class="compare-plan-box mt-3">
-              <div class="plan-badge plan-c-badge">プラン C (積極)</div>
-              <div class="input-grid-2">
-                <div class="input-group-compact">
-                  <label>毎月積立</label>
-                  <div class="input-unit">
-                    <input type="number" id="cmp-monthly-c" value="10" step="0.5" min="0">
-                    <span>万円</span>
-                  </div>
-                </div>
-                <div class="input-group-compact">
-                  <label>年利回り</label>
-                  <div class="input-unit">
-                    <input type="number" id="cmp-rate-c" value="7.0" step="0.1" min="0">
-                    <span>%</span>
-                  </div>
-                </div>
+            <!-- 定率取り崩しの場合の入力 -->
+            <div id="box-withdraw-rate" class="form-group hidden">
+              <div class="label-row">
+                <label for="withdraw-rate">年間取り崩し率</label>
+                <span class="val-badge"><strong id="disp-withdraw-rate">4.0</strong> %/年</span>
               </div>
+              <div class="range-row">
+                <input type="range" id="range-withdraw-rate" min="0.5" max="15.0" step="0.1" value="4.0">
+                <input type="number" id="withdraw-rate" class="num-input" min="0.5" max="30" step="0.1" value="4.0">
+              </div>
+              <p class="input-hint">※4%ルール等の定率取崩し。前年末の対象口座総残高に適用されます。</p>
             </div>
 
-            <div class="input-group mt-3">
-              <div class="input-header">
-                <label for="cmp-years">比較年数</label>
-                <div class="input-val-display"><span id="cmp-years-val">25</span> 年</div>
-              </div>
-              <div class="slider-container">
-                <input type="range" id="cmp-years" min="1" max="40" step="1" value="25">
-                <input type="number" class="number-input" id="cmp-years-num" min="1" max="50" value="25">
-              </div>
-            </div>
-
-            <div class="input-group">
-              <div class="input-header">
-                <label for="cmp-initial">共通初期投資</label>
-                <div class="input-val-display"><span id="cmp-initial-val">100</span> 万円</div>
-              </div>
-              <div class="slider-container">
-                <input type="range" id="cmp-initial" min="0" max="2000" step="10" value="100">
-                <input type="number" class="number-input" id="cmp-initial-num" min="0" max="5000" value="100">
-              </div>
-            </div>
+            <p class="input-hint alert-hint">
+              <i data-lucide="info"></i> <strong>取崩し順序</strong>: 原則課税される「特定口座」から取り崩し、特定口座が枯渇した後に「旧NISA」→「新NISA」の順で取り崩します（株式現物は除外）。
+            </p>
           </div>
         </form>
       </aside>
 
-      <!-- Right Panel: Results, KPIs & Charts -->
-      <section class="results-panel">
-        <!-- KPI Overview Cards -->
-        <div class="kpi-grid" id="kpi-grid">
-          <!-- Card 1: Main Result -->
-          <div class="kpi-card highlight-card">
-            <div class="kpi-icon"><i data-lucide="wallet"></i></div>
+      <!-- Right Panel: Simulation Output & Analytics -->
+      <main class="content-panel">
+        <!-- Top KPI Cards -->
+        <section class="kpi-grid">
+          <div class="kpi-card card-peak">
+            <div class="kpi-icon"><i data-lucide="trending-up"></i></div>
             <div class="kpi-content">
-              <span class="kpi-label" id="kpi-main-label">最終積立総額 (20年後)</span>
-              <div class="kpi-value-row">
-                <span class="kpi-val" id="kpi-total-val">0</span>
-                <span class="kpi-unit">万円</span>
-              </div>
-              <span class="kpi-sub" id="kpi-total-sub">（約 0 億円）</span>
+              <span class="kpi-label">資産ピーク時 (総資産)</span>
+              <div class="kpi-val"><strong id="kpi-peak-assets">-</strong> 万円</div>
+              <span class="kpi-sub" id="kpi-peak-age">- 歳到達時</span>
             </div>
           </div>
 
-          <!-- Card 2: Investment Principal -->
-          <div class="kpi-card">
-            <div class="kpi-icon principal-icon"><i data-lucide="piggy-bank"></i></div>
+          <div class="kpi-card card-end">
+            <div class="kpi-icon"><i data-lucide="flag"></i></div>
             <div class="kpi-content">
-              <span class="kpi-label" id="kpi-principal-label">投資元本累計</span>
-              <div class="kpi-value-row">
-                <span class="kpi-val" id="kpi-principal-val">0</span>
-                <span class="kpi-unit">万円</span>
-              </div>
-              <span class="kpi-sub" id="kpi-principal-pct">割合 0%</span>
+              <span class="kpi-label">100歳時点の最終残高</span>
+              <div class="kpi-val"><strong id="kpi-100-assets">-</strong> 万円</div>
+              <span class="kpi-sub" id="kpi-100-status">資産維持</span>
             </div>
           </div>
 
-          <!-- Card 3: Investment Gain -->
-          <div class="kpi-card profit-card">
-            <div class="kpi-icon profit-icon"><i data-lucide="line-chart"></i></div>
+          <div class="kpi-card card-dc">
+            <div class="kpi-icon"><i data-lucide="gift"></i></div>
             <div class="kpi-content">
-              <span class="kpi-label" id="kpi-profit-label">運用収益 (リターン)</span>
-              <div class="kpi-value-row">
-                <span class="kpi-val text-profit" id="kpi-profit-val">+0</span>
-                <span class="kpi-unit text-profit">万円</span>
-              </div>
-              <span class="kpi-sub text-profit" id="kpi-profit-pct">+0.0%</span>
+              <span class="kpi-label">DC退職金手取り移管額</span>
+              <div class="kpi-val"><strong id="kpi-dc-net">-</strong> 万円</div>
+              <span class="kpi-sub" id="kpi-dc-tax-saved">控除税額: - 万円</span>
             </div>
           </div>
 
-          <!-- Card 4: NISA Tax Benefit or Monthly Requirement -->
-          <div class="kpi-card tax-card" id="kpi-aux-card">
-            <div class="kpi-icon aux-icon" id="kpi-aux-icon"><i data-lucide="shield-check"></i></div>
+          <div class="kpi-card card-pension">
+            <div class="kpi-icon"><i data-lucide="coins"></i></div>
             <div class="kpi-content">
-              <span class="kpi-label" id="kpi-aux-label">新NISA節税効果</span>
-              <div class="kpi-value-row">
-                <span class="kpi-val text-accent" id="kpi-aux-val">0</span>
-                <span class="kpi-unit text-accent" id="kpi-aux-unit">万円</span>
-              </div>
-              <span class="kpi-sub" id="kpi-aux-sub">非課税枠による節税メリット</span>
+              <span class="kpi-label">生涯公的年金受給総額</span>
+              <div class="kpi-val"><strong id="kpi-pension-total">-</strong> 万円</div>
+              <span class="kpi-sub" id="kpi-pension-span">65歳〜100歳</span>
             </div>
           </div>
-        </div>
+        </section>
 
-        <!-- Charts Container -->
-        <div class="charts-card">
-          <div class="chart-header">
-            <div class="chart-title-area">
-              <h3 id="chart-main-title">資産推移シミュレーション</h3>
-              <p class="chart-subtitle" id="chart-main-subtitle">元本と複利運用益の年次推移</p>
+        <!-- Chart Section -->
+        <section class="section-card chart-section">
+          <div class="section-header">
+            <div class="section-title-group">
+              <h2><i data-lucide="area-chart"></i> 資産推移・ライフサイクルシミュレーション</h2>
+              <span class="section-badge">100歳までの全口座推移</span>
             </div>
             <div class="chart-controls">
-              <div class="btn-group-toggle" id="chart-type-toggle">
-                <button class="btn-toggle active" data-chart-type="area">積み上げ面</button>
-                <button class="btn-toggle" data-chart-type="bar">棒グラフ</button>
-                <button class="btn-toggle" data-chart-type="line">折れ線</button>
+              <div class="btn-group">
+                <button type="button" class="btn-toggle active" data-chart="stacked">口座別積み上げ</button>
+                <button type="button" class="btn-toggle" data-chart="cashflow">収支・取崩し</button>
+                <button type="button" class="btn-toggle" data-chart="lines">口座別推移線</button>
               </div>
             </div>
           </div>
           
-          <div class="chart-layout-inner">
-            <div class="main-chart-box">
-              <canvas id="mainChart"></canvas>
-            </div>
-            <div class="donut-chart-box" id="donut-container">
-              <h4>資産内訳</h4>
-              <div class="donut-canvas-wrapper">
-                <canvas id="donutChart"></canvas>
-              </div>
-              <div class="donut-legend" id="donut-legend">
-                <div class="legend-row">
-                  <span class="legend-dot dot-principal"></span>
-                  <span class="legend-text">投資元本</span>
-                  <span class="legend-val" id="legend-principal-val">0万円</span>
-                </div>
-                <div class="legend-row">
-                  <span class="legend-dot dot-profit"></span>
-                  <span class="legend-text">運用収益</span>
-                  <span class="legend-val" id="legend-profit-val">0万円</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Key Milestones or Insights Box -->
-        <div class="insight-banner" id="insight-banner">
-          <div class="insight-icon"><i data-lucide="lightbulb"></i></div>
-          <div class="insight-text" id="insight-text">
-            20年間の複利効果により、元本に対して<strong>+1,586万円</strong>の利益が生まれました。
-          </div>
-        </div>
-
-        <!-- Detailed Data Table Accordion -->
-        <div class="table-card">
-          <div class="table-card-header">
-            <div class="table-title">
-              <i data-lucide="table"></i>
-              <span>年次別資産推移詳細</span>
-            </div>
-            <button type="button" class="btn btn-sm btn-outline" id="btn-toggle-table">
-              <span id="toggle-table-text">表を表示する</span>
-              <i data-lucide="chevron-down" id="toggle-table-icon"></i>
-            </button>
+          <div class="chart-container">
+            <canvas id="mainChart"></canvas>
           </div>
 
-          <div class="table-wrapper hidden" id="table-container">
-            <table class="data-table" id="simulation-table">
+          <!-- Chart Legend Pills -->
+          <div class="chart-legend-custom">
+            <span class="legend-pill" style="--c: var(--col-taxable);"><span class="dot"></span>特定口座 (課税)</span>
+            <span class="legend-pill" style="--c: var(--col-oldnisa);"><span class="dot"></span>旧NISA (移管前)</span>
+            <span class="legend-pill" style="--c: var(--col-newnisa);"><span class="dot"></span>新NISA (非課税)</span>
+            <span class="legend-pill" style="--c: var(--col-dc);"><span class="dot"></span>確定拠出年金 (DC)</span>
+            <span class="legend-pill" style="--c: var(--col-stock);"><span class="dot"></span>株式現物 (温存)</span>
+          </div>
+        </section>
+
+        <!-- ★ マイルストーン セクション (60歳〜100歳 10歳刻み) -->
+        <section class="section-card milestone-section">
+          <div class="section-header">
+            <div class="section-title-group">
+              <h2><i data-lucide="milestone"></i> 年齢別マイルストーン (60歳〜100歳・10歳刻み)</h2>
+              <span class="section-badge badge-accent">重要ライフステージ</span>
+            </div>
+          </div>
+
+          <!-- マイルストーンカード一覧 (横スクロール / グリッド) -->
+          <div class="milestone-cards-grid" id="milestone-cards-container">
+            <!-- Dynamic Injection via JavaScript -->
+          </div>
+
+          <!-- マイルストーン一覧テーブル -->
+          <div class="table-responsive milestone-table-box">
+            <table class="data-table milestone-table">
               <thead>
                 <tr>
-                  <th>経過年</th>
-                  <th>年齢</th>
-                  <th>投資累計額(元本)</th>
-                  <th>年間利息</th>
-                  <th>運用収益累計</th>
-                  <th>資産残高(税引前)</th>
-                  <th>新NISA非課税枠残高</th>
-                  <th>手取り資産残高</th>
+                  <th>マイルストーン</th>
+                  <th>総資産額</th>
+                  <th>特定口座</th>
+                  <th>旧NISA</th>
+                  <th>新NISA</th>
+                  <th>確定拠出年金</th>
+                  <th>株式現物</th>
+                  <th>公的年金 (年額)</th>
+                  <th>取り崩し額 (年額)</th>
+                  <th>判定</th>
                 </tr>
               </thead>
-              <tbody id="simulation-table-body">
-                <!-- Rows rendered dynamically -->
+              <tbody id="milestone-table-body">
+                <!-- Dynamic Rows -->
               </tbody>
             </table>
           </div>
-        </div>
-      </section>
-    </main>
+        </section>
 
-    <!-- Modal for adding/editing Life Events -->
-    <div class="modal-overlay hidden" id="event-modal">
-      <div class="modal-card">
-        <div class="modal-header">
-          <h3 id="modal-title">ライフイベントの追加</h3>
-          <button class="btn-close" id="btn-close-modal"><i data-lucide="x"></i></button>
-        </div>
-        <div class="modal-body">
-          <div class="input-group">
-            <label for="event-name">イベント名</label>
-            <input type="text" id="event-name" class="text-input" placeholder="例: 住宅購入頭金、子どもの大学進学、退職金" value="マイホーム購入">
-          </div>
-
-          <div class="input-group">
-            <label for="event-year">発生時期 (何年後 / または年齢)</label>
-            <div class="input-grid-2">
-              <div class="input-unit">
-                <input type="number" id="event-year" class="text-input" min="1" max="50" value="5">
-                <span>年後</span>
-              </div>
-              <div class="event-preset-select">
-                <select id="event-preset-dropdown" class="select-input">
-                  <option value="">-- プリセットから選ぶ --</option>
-                  <option value="house" data-amount="-500" data-year="5">住宅購入頭金 (-500万)</option>
-                  <option value="edu" data-amount="-400" data-year="15">大学学費 (-400万)</option>
-                  <option value="car" data-amount="-300" data-year="3">自動車購入 (-300万)</option>
-                  <option value="marriage" data-amount="-200" data-year="2">結婚・新生活 (-200万)</option>
-                  <option value="retirement" data-amount="1500" data-year="30">退職金一時金 (+1,500万)</option>
-                  <option value="inheritance" data-amount="1000" data-year="20">相続・臨時収入 (+1,000万)</option>
-                </select>
-              </div>
+        <!-- 全年齢年次詳細データテーブル -->
+        <section class="section-card detail-table-section">
+          <div class="section-header cursor-pointer" id="btn-toggle-detail-table">
+            <div class="section-title-group">
+              <h2><i data-lucide="table"></i> 全年齢 年次キャッシュフロー・資産明細一覧</h2>
+              <span class="section-badge" id="badge-table-rows">35歳〜100歳</span>
+            </div>
+            <div class="header-action-toggle">
+              <span class="toggle-text">詳細を開く / 閉じる</span>
+              <i data-lucide="chevron-down" id="icon-detail-table"></i>
             </div>
           </div>
 
-          <div class="input-group">
-            <label for="event-amount">収支金額 (支出はマイナス、収入はプラス)</label>
-            <div class="input-unit">
-              <input type="number" id="event-amount" class="text-input" step="10" value="-500">
-              <span>万円</span>
+          <div class="detail-table-collapse" id="box-detail-table">
+            <div class="table-toolbar">
+              <p class="table-desc">※各年度の拠出、運用益、年金受給、DC移管、口座別取り崩し、期末残高の明細です。</p>
+              <button type="button" class="btn btn-sm btn-outline" id="btn-table-download-csv">
+                <i data-lucide="download"></i> このテーブルをCSV出力
+              </button>
             </div>
-            <p class="field-hint">例: 500万円の出費なら「-500」、1,000万円の退職金なら「1000」</p>
+            <div class="table-responsive">
+              <table class="data-table full-detail-table">
+                <thead>
+                  <tr>
+                    <th>年齢</th>
+                    <th>経過年</th>
+                    <th>総資産額</th>
+                    <th>年間積立計</th>
+                    <th>年間運用益</th>
+                    <th>公的年金</th>
+                    <th>DC受取/移管</th>
+                    <th>特定口座残高</th>
+                    <th>旧NISA残高</th>
+                    <th>新NISA残高</th>
+                    <th>DC残高</th>
+                    <th>株式現物残高</th>
+                    <th>年間取崩し額</th>
+                  </tr>
+                </thead>
+                <tbody id="full-detail-table-body">
+                  <!-- Dynamic Rows -->
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-outline" id="btn-cancel-modal">キャンセル</button>
-          <button type="button" class="btn btn-primary" id="btn-save-event">保存する</button>
-        </div>
-      </div>
+        </section>
+      </main>
     </div>
 
-    <!-- Toast Notification -->
-    <div class="toast hidden" id="toast">
-      <i data-lucide="check-circle" id="toast-icon"></i>
-      <span id="toast-message">設定を保存しました</span>
-    </div>
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="toast-container"></div>
   </div>
 
-  <!-- Custom Scripts -->
+  <!-- App Logic -->
   <script src="app.js"></script>
 </body>
 </html>

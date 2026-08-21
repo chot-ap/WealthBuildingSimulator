@@ -1,1535 +1,1295 @@
 /**
- * 資産形成シミュレータ PRO (Wealth Simulator Pro)
- * Core Application Engine & Interactive Logic
+ * マルチ口座 資産運用シミュレーター PRO (Wealth Simulator Pro)
+ * Core Logic & Simulation Engine
  */
 
 // ============================================================================
 // State Management
 // ============================================================================
-const state = {
-  activeTab: 'accumulate',
-  chartType: 'area',
-  theme: localStorage.getItem('wealth_sim_theme') || 'dark',
-  tableVisible: false,
-  
-  // Tab 1: Accumulate (積立投資・新NISA)
-  accumulate: {
-    initial: 100, // 万円
-    monthly: 5.0, // 万円
-    rate: 5.0,    // %
-    years: 20,    // 年
-    startAge: 30, // 歳
-    nisaEnabled: true,
-    inflation: 0.0 // %
+const DEFAULT_STATE = {
+  currentAge: 35,
+  accounts: {
+    taxable: {
+      initial: 100,      // 万円
+      monthly: 2.0,      // 万円/月
+      rate: 5.0,         // %/年
+      endAge: 60         // 歳まで積立
+    },
+    oldNisa: {
+      initial: 200,      // 万円
+      rate: 5.0,         // %/年
+      transferAge: 40    // 歳時点で特定口座へ非課税移管
+    },
+    newNisa: {
+      initial: 300,      // 万円
+      monthly: 5.0,      // 万円/月
+      rate: 5.0,         // %/年
+      endAge: 60         // 歳まで積立 (上限1,800万)
+    },
+    dc: {
+      initial: 150,      // 万円
+      monthly: 2.3,      // 万円/月
+      rate: 4.5,         // %/年
+      endAge: 60,        // 歳まで拠出
+      receiveAge: 60,    // 歳で退職金受取
+      yearsPast: 5       // これまでの拠出年数
+    },
+    stock: {
+      initial: 200,      // 万円
+      monthly: 0.0,      // 万円/月
+      rate: 4.0          // %/年 (原則取崩し対象外)
+    }
   },
-
-  // Tab 2: Goal (目標逆算)
-  goal: {
-    target: 3000, // 万円
-    years: 20,    // 年
-    initial: 100, // 万円
-    rate: 5.0     // %
+  pension: {
+    startAge: 65,        // 歳から受給開始
+    monthly: 15.0        // 万円/月
   },
-
-  // Tab 3: FIRE (取り崩し)
-  fire: {
-    assets: 5000,      // 万円
+  withdraw: {
+    startAge: 65,        // 歳から取崩し開始
     type: 'fixed-amount', // 'fixed-amount' | 'fixed-rate'
-    monthly: 20.0,     // 万円
-    ratePct: 4.0,      // %
-    returnRate: 3.0,   // %
-    startAge: 60,      // 歳
-    years: 35          // 年
+    monthly: 20.0,       // 万円/月 (定額取崩し時)
+    rate: 4.0            // %/年 (定率取崩し時)
   },
-
-  // Tab 4: Life Plan (ライフイベント)
-  lifeplan: {
-    initial: 200,
-    monthly: 6.0,
-    rate: 5.0,
-    years: 30,
-    events: [
-      { id: 'evt-1', name: 'マイホーム購入頭金', year: 5, amount: -500 },
-      { id: 'evt-2', name: '子どもの大学入学', year: 15, amount: -400 },
-      { id: 'evt-3', name: '退職金一時金', year: 30, amount: 1500 }
-    ]
-  },
-
-  // Tab 5: Compare (シナリオ比較)
-  compare: {
-    planA: { monthly: 3.0, rate: 3.0 },
-    planB: { monthly: 5.0, rate: 5.0 },
-    planC: { monthly: 10.0, rate: 7.0 },
-    years: 25,
-    initial: 100
-  },
-
-  // Cached Calculation Results
-  results: null
+  chartType: 'stacked',  // 'stacked' | 'cashflow' | 'lines'
+  theme: 'dark',
+  detailTableOpen: false
 };
 
-// Preset Configurations
+// Application State Object (Cloned from Default)
+let state = JSON.parse(JSON.stringify(DEFAULT_STATE));
+
+// Presets
 const PRESETS = {
-  'all-country': {
-    initial: 50,
-    monthly: 5.0,
-    rate: 5.0,
-    years: 25,
-    startAge: 30,
-    nisaEnabled: true
+  standard: {
+    currentAge: 35,
+    accounts: {
+      taxable: { initial: 100, monthly: 2.0, rate: 5.0, endAge: 60 },
+      oldNisa: { initial: 200, rate: 5.0, transferAge: 40 },
+      newNisa: { initial: 300, monthly: 5.0, rate: 5.0, endAge: 60 },
+      dc: { initial: 150, monthly: 2.3, rate: 4.5, endAge: 60, receiveAge: 60, yearsPast: 5 },
+      stock: { initial: 200, monthly: 0.0, rate: 4.0 }
+    },
+    pension: { startAge: 65, monthly: 15.0 },
+    withdraw: { startAge: 65, type: 'fixed-amount', monthly: 20.0, rate: 4.0 }
   },
-  'sp500': {
-    initial: 100,
-    monthly: 10.0,
-    rate: 7.0,
-    years: 20,
-    startAge: 28,
-    nisaEnabled: true
+  fire: {
+    currentAge: 30,
+    accounts: {
+      taxable: { initial: 300, monthly: 10.0, rate: 6.0, endAge: 50 },
+      oldNisa: { initial: 100, rate: 6.0, transferAge: 35 },
+      newNisa: { initial: 500, monthly: 15.0, rate: 6.0, endAge: 50 },
+      dc: { initial: 100, monthly: 5.5, rate: 5.0, endAge: 55, receiveAge: 60, yearsPast: 4 },
+      stock: { initial: 300, monthly: 2.0, rate: 5.0 }
+    },
+    pension: { startAge: 65, monthly: 12.0 },
+    withdraw: { startAge: 55, type: 'fixed-rate', monthly: 25.0, rate: 4.0 }
   },
-  'nisa-max': {
-    initial: 240,
-    monthly: 30.0,
-    rate: 6.0,
-    years: 20,
-    startAge: 30,
-    nisaEnabled: true
+  'stock-focused': {
+    currentAge: 40,
+    accounts: {
+      taxable: { initial: 200, monthly: 3.0, rate: 4.5, endAge: 65 },
+      oldNisa: { initial: 150, rate: 4.5, transferAge: 45 },
+      newNisa: { initial: 400, monthly: 8.0, rate: 5.0, endAge: 65 },
+      dc: { initial: 200, monthly: 2.0, rate: 4.0, endAge: 60, receiveAge: 65, yearsPast: 10 },
+      stock: { initial: 1000, monthly: 5.0, rate: 4.5 }
+    },
+    pension: { startAge: 65, monthly: 16.0 },
+    withdraw: { startAge: 65, type: 'fixed-amount', monthly: 18.0, rate: 3.5 }
   },
-  'starter': {
-    initial: 10,
-    monthly: 1.0,
-    rate: 4.0,
-    years: 30,
-    startAge: 24,
-    nisaEnabled: true
+  senior: {
+    currentAge: 55,
+    accounts: {
+      taxable: { initial: 800, monthly: 5.0, rate: 3.5, endAge: 60 },
+      oldNisa: { initial: 400, rate: 4.0, transferAge: 58 },
+      newNisa: { initial: 600, monthly: 10.0, rate: 4.5, endAge: 65 },
+      dc: { initial: 800, monthly: 2.3, rate: 3.5, endAge: 60, receiveAge: 60, yearsPast: 20 },
+      stock: { initial: 500, monthly: 0.0, rate: 3.5 }
+    },
+    pension: { startAge: 65, monthly: 18.0 },
+    withdraw: { startAge: 60, type: 'fixed-amount', monthly: 22.0, rate: 4.0 }
   }
 };
 
 // ============================================================================
-// Mathematical / Financial Calculation Engines
+// Financial Calculations (現行退職所得控除 & シミュレーション)
 // ============================================================================
-const NISA_LIMIT = 1800; // 万円 (生涯非課税保有限度額)
-const TAX_RATE = 0.20315; // 20.315% (所得税・復興特別所得税・住民税)
+const NISA_LIFETIME_LIMIT = 1800; // 万円
+const CAPITAL_GAINS_TAX = 0.20315; // 20.315% (特定口座運用益・譲渡益税)
 
-const CalcEngine = {
-  /**
-   * 積立投資 & 新NISAシミュレーション
-   */
-  calculateAccumulate(params) {
-    const { initial, monthly, rate, years, startAge, nisaEnabled, inflation } = params;
-    const monthlyRate = rate / 100 / 12;
-    const totalMonths = years * 12;
+/**
+ * 現行の退職所得控除 & 退職所得課税計算
+ * @param {number} grossAmount - DC受取総額 (万円)
+ * @param {number} totalYears - 勤続・拠出年数 (年)
+ */
+function calcRetirementTax(grossAmount, totalYears) {
+  const years = Math.max(1, Math.ceil(totalYears));
+  let deduction = 0; // 万円
 
-    let balance = initial;
-    let totalInvested = initial;
-    let nisaInvested = Math.min(initial, NISA_LIMIT);
-    let taxableInvested = Math.max(0, initial - NISA_LIMIT);
+  // 1. 退職所得控除額
+  if (years <= 20) {
+    deduction = Math.max(80, 40 * years);
+  } else {
+    deduction = 800 + 70 * (years - 20);
+  }
 
-    const yearlyData = [];
-    
-    // Year 0 record
-    yearlyData.push({
-      year: 0,
-      age: startAge,
-      invested: totalInvested,
-      profit: 0,
-      balance: balance,
-      realBalance: balance,
-      interestThisYear: 0,
-      nisaBalance: nisaInvested,
-      taxableProfit: 0,
-      taxSaved: 0,
-      netBalance: balance
-    });
+  // 2. 課税退職所得金額 (1,000円未満切り捨て、0以下は0)
+  const taxableIncomeYen = Math.max(0, Math.floor(((grossAmount - deduction) * 10000 * 0.5) / 1000) * 1000);
+  const taxableIncomeMan = taxableIncomeYen / 10000;
 
-    let prevYearEndBalance = balance;
-
-    for (let m = 1; m <= totalMonths; m++) {
-      // 1ヶ月分の利息計算
-      const monthlyInterest = balance * monthlyRate;
-      balance += monthlyInterest + monthly;
-      totalInvested += monthly;
-
-      // NISA枠管理
-      if (nisaInvested + monthly <= NISA_LIMIT) {
-        nisaInvested += monthly;
-      } else {
-        const remainingNisa = Math.max(0, NISA_LIMIT - nisaInvested);
-        nisaInvested += remainingNisa;
-        taxableInvested += (monthly - remainingNisa);
-      }
-
-      // 年末時点の集計 (12ヶ月ごと)
-      if (m % 12 === 0) {
-        const currentYear = m / 12;
-        const profit = balance - totalInvested;
-        const interestThisYear = balance - prevYearEndBalance - (monthly * 12);
-        prevYearEndBalance = balance;
-
-        // 税金計算
-        let taxSaved = 0;
-        let netBalance = balance;
-        if (nisaEnabled) {
-          if (taxableInvested > 0) {
-            // NISA枠外の比率に応じて課税
-            const taxableRatio = taxableInvested / totalInvested;
-            const taxableProfit = Math.max(0, profit * taxableRatio);
-            const tax = taxableProfit * TAX_RATE;
-            netBalance = balance - tax;
-            const nisaProfit = profit - taxableProfit;
-            taxSaved = nisaProfit * TAX_RATE;
-          } else {
-            // 全額NISA内
-            taxSaved = Math.max(0, profit * TAX_RATE);
-            netBalance = balance;
-          }
-        } else {
-          // NISA不使用 (全額課税口座)
-          const tax = Math.max(0, profit * TAX_RATE);
-          netBalance = balance - tax;
-          taxSaved = 0;
-        }
-
-        // インフレ調整 (現在価値換算)
-        const inflationFactor = Math.pow(1 + (inflation / 100), currentYear);
-        const realBalance = netBalance / inflationFactor;
-
-        yearlyData.push({
-          year: currentYear,
-          age: startAge + currentYear,
-          invested: Math.round(totalInvested * 10) / 10,
-          profit: Math.round(profit * 10) / 10,
-          balance: Math.round(balance * 10) / 10,
-          realBalance: Math.round(realBalance * 10) / 10,
-          interestThisYear: Math.round(interestThisYear * 10) / 10,
-          nisaBalance: Math.round(nisaInvested * 10) / 10,
-          taxSaved: Math.round(taxSaved * 10) / 10,
-          netBalance: Math.round(netBalance * 10) / 10
-        });
-      }
-    }
-
-    const finalRow = yearlyData[yearlyData.length - 1];
+  if (taxableIncomeYen <= 0) {
     return {
-      type: 'accumulate',
-      yearlyData,
-      summary: {
-        totalBalance: finalRow.netBalance,
-        grossBalance: finalRow.balance,
-        totalInvested: finalRow.invested,
-        totalProfit: Math.max(0, finalRow.netBalance - finalRow.invested),
-        profitPercent: finalRow.invested > 0 ? ((finalRow.netBalance - finalRow.invested) / finalRow.invested * 100) : 0,
-        taxSaved: finalRow.taxSaved,
-        realBalance: finalRow.realBalance
-      }
-    };
-  },
-
-  /**
-   * 目標金額からの逆算シミュレーション
-   */
-  calculateGoal(params) {
-    const { target, years, initial, rate } = params;
-    const monthlyRate = rate / 100 / 12;
-    const totalMonths = years * 12;
-
-    // 初期投資の将来価値
-    const futureInitial = initial * Math.pow(1 + monthlyRate, totalMonths);
-    const remainingTarget = Math.max(0, target - futureInitial);
-
-    // 月々の必要積立額 (年金終価係数の逆数)
-    let requiredMonthly = 0;
-    if (monthlyRate > 0) {
-      requiredMonthly = (remainingTarget * monthlyRate) / (Math.pow(1 + monthlyRate, totalMonths) - 1);
-    } else {
-      requiredMonthly = remainingTarget / totalMonths;
-    }
-
-    // 計算した毎月積立額を用いて年次推移を生成
-    const accumulateResult = this.calculateAccumulate({
-      initial: initial,
-      monthly: Math.max(0, requiredMonthly),
-      rate: rate,
-      years: years,
-      startAge: 30,
-      nisaEnabled: true,
-      inflation: 0
-    });
-
-    return {
-      type: 'goal',
-      yearlyData: accumulateResult.yearlyData,
-      requiredMonthly: Math.round(requiredMonthly * 10) / 10,
-      target: target,
-      summary: {
-        totalBalance: accumulateResult.summary.totalBalance,
-        totalInvested: accumulateResult.summary.totalInvested,
-        totalProfit: accumulateResult.summary.totalProfit,
-        profitPercent: accumulateResult.summary.profitPercent,
-        requiredMonthly: Math.round(requiredMonthly * 10) / 10,
-        yearsToTarget: years
-      }
-    };
-  },
-
-  /**
-   * FIRE・取り崩しシミュレーション
-   */
-  calculateFire(params) {
-    const { assets, type, monthly, ratePct, returnRate, startAge, years } = params;
-    const monthlyReturnRate = returnRate / 100 / 12;
-    const totalMonths = years * 12;
-
-    let balance = assets;
-    let totalWithdrawn = 0;
-    let depletedAge = null;
-    let depletedYear = null;
-
-    const yearlyData = [];
-    yearlyData.push({
-      year: 0,
-      age: startAge,
-      balance: balance,
-      totalWithdrawn: 0,
-      annualWithdrawal: 0,
-      annualInterest: 0
-    });
-
-    let prevBalance = balance;
-    let yearWithdrawalSum = 0;
-
-    for (let m = 1; m <= totalMonths; m++) {
-      if (balance <= 0) {
-        if (!depletedYear) {
-          depletedYear = Math.ceil(m / 12);
-          depletedAge = startAge + depletedYear;
-        }
-        balance = 0;
-      } else {
-        // 月初に取り崩し額を決定
-        let withdrawAmount = 0;
-        if (type === 'fixed-amount') {
-          withdrawAmount = monthly;
-        } else {
-          // 定率取り崩し (年率 ratePct% / 12)
-          withdrawAmount = balance * (ratePct / 100 / 12);
-        }
-
-        const actualWithdraw = Math.min(balance, withdrawAmount);
-        balance -= actualWithdraw;
-        totalWithdrawn += actualWithdraw;
-        yearWithdrawalSum += actualWithdraw;
-
-        // 残額を運用
-        const interest = balance * monthlyReturnRate;
-        balance += interest;
-      }
-
-      if (m % 12 === 0) {
-        const currentYear = m / 12;
-        const currentAge = startAge + currentYear;
-        const annualInterest = balance - prevBalance + yearWithdrawalSum;
-        prevBalance = balance;
-
-        yearlyData.push({
-          year: currentYear,
-          age: currentAge,
-          balance: Math.round(balance * 10) / 10,
-          totalWithdrawn: Math.round(totalWithdrawn * 10) / 10,
-          annualWithdrawal: Math.round(yearWithdrawalSum * 10) / 10,
-          annualInterest: Math.round(annualInterest * 10) / 10
-        });
-
-        yearWithdrawalSum = 0;
-      }
-    }
-
-    const finalRow = yearlyData[yearlyData.length - 1];
-    return {
-      type: 'fire',
-      yearlyData,
-      depletedAge,
-      depletedYear,
-      summary: {
-        remainingBalance: finalRow.balance,
-        totalWithdrawn: Math.round(totalWithdrawn * 10) / 10,
-        initialAssets: assets,
-        depletedAge: depletedAge,
-        isSustained: balance > 0
-      }
-    };
-  },
-
-  /**
-   * ライフイベント連動シミュレーション
-   */
-  calculateLifePlan(params) {
-    const { initial, monthly, rate, years, events } = params;
-    const monthlyRate = rate / 100 / 12;
-    const totalMonths = years * 12;
-
-    let balance = initial;
-    let totalInvested = initial;
-    const startAge = 30;
-
-    const yearlyData = [];
-    yearlyData.push({
-      year: 0,
-      age: startAge,
-      invested: totalInvested,
-      profit: 0,
-      balance: balance,
-      eventImpact: 0
-    });
-
-    for (let m = 1; m <= totalMonths; m++) {
-      balance += (balance * monthlyRate) + monthly;
-      totalInvested += monthly;
-
-      // 年末時点
-      if (m % 12 === 0) {
-        const currentYear = m / 12;
-        
-        // 当該年に発生するイベントを反映
-        let eventNet = 0;
-        const yearEvents = events.filter(e => e.year === currentYear);
-        for (const evt of yearEvents) {
-          eventNet += evt.amount;
-        }
-
-        balance += eventNet;
-        if (balance < 0) balance = 0;
-
-        yearlyData.push({
-          year: currentYear,
-          age: startAge + currentYear,
-          invested: Math.round(totalInvested * 10) / 10,
-          profit: Math.round(Math.max(0, balance - totalInvested) * 10) / 10,
-          balance: Math.round(balance * 10) / 10,
-          eventImpact: eventNet
-        });
-      }
-    }
-
-    const finalRow = yearlyData[yearlyData.length - 1];
-    return {
-      type: 'lifeplan',
-      yearlyData,
-      summary: {
-        totalBalance: finalRow.balance,
-        totalInvested: finalRow.invested,
-        totalProfit: Math.max(0, finalRow.balance - finalRow.invested),
-        profitPercent: finalRow.invested > 0 ? ((finalRow.balance - finalRow.invested) / finalRow.invested * 100) : 0,
-        eventCount: events.length
-      }
-    };
-  },
-
-  /**
-   * シナリオ比較 (Plan A / B / C)
-   */
-  calculateCompare(params) {
-    const { planA, planB, planC, years, initial } = params;
-
-    const resA = this.calculateAccumulate({ initial, monthly: planA.monthly, rate: planA.rate, years, startAge: 30, nisaEnabled: true, inflation: 0 });
-    const resB = this.calculateAccumulate({ initial, monthly: planB.monthly, rate: planB.rate, years, startAge: 30, nisaEnabled: true, inflation: 0 });
-    const resC = this.calculateAccumulate({ initial, monthly: planC.monthly, rate: planC.rate, years, startAge: 30, nisaEnabled: true, inflation: 0 });
-
-    return {
-      type: 'compare',
-      planA: resA,
-      planB: resB,
-      planC: resC,
-      years
+      grossAmount,
+      years,
+      deduction,
+      taxableIncome: 0,
+      totalTax: 0,
+      netAmount: grossAmount
     };
   }
-};
+
+  // 3. 所得税の速算表 (円単位)
+  let baseIncomeTaxYen = 0;
+  if (taxableIncomeYen <= 1950000) {
+    baseIncomeTaxYen = taxableIncomeYen * 0.05;
+  } else if (taxableIncomeYen <= 3300000) {
+    baseIncomeTaxYen = taxableIncomeYen * 0.10 - 97500;
+  } else if (taxableIncomeYen <= 6950000) {
+    baseIncomeTaxYen = taxableIncomeYen * 0.20 - 427500;
+  } else if (taxableIncomeYen <= 9000000) {
+    baseIncomeTaxYen = taxableIncomeYen * 0.23 - 636000;
+  } else if (taxableIncomeYen <= 18000000) {
+    baseIncomeTaxYen = taxableIncomeYen * 0.33 - 1536000;
+  } else if (taxableIncomeYen <= 40000000) {
+    baseIncomeTaxYen = taxableIncomeYen * 0.40 - 2796000;
+  } else {
+    baseIncomeTaxYen = taxableIncomeYen * 0.45 - 4796000;
+  }
+
+  // 復興特別所得税 (2.1%)
+  const reconTaxYen = baseIncomeTaxYen * 0.021;
+  const incomeTaxYen = Math.floor(baseIncomeTaxYen + reconTaxYen);
+
+  // 住民税 (一律10%)
+  const residentTaxYen = Math.floor(taxableIncomeYen * 0.10);
+
+  const totalTaxYen = incomeTaxYen + residentTaxYen;
+  const totalTaxMan = Math.round((totalTaxYen / 10000) * 100) / 100;
+  const netAmountMan = Math.round((grossAmount - totalTaxMan) * 100) / 100;
+
+  return {
+    grossAmount,
+    years,
+    deduction,
+    taxableIncome: taxableIncomeMan,
+    incomeTax: incomeTaxYen / 10000,
+    residentTax: residentTaxYen / 10000,
+    totalTax: totalTaxMan,
+    netAmount: netAmountMan
+  };
+}
+
+/**
+ * ライフサイクル資産シミュレーションエンジン
+ * @param {object} cfg - 現在のstate設定
+ */
+function runSimulation(cfg) {
+  const currentAge = parseInt(cfg.currentAge, 10);
+  const endAge = 100;
+  const totalYears = endAge - currentAge;
+
+  // 各口座の現在残高
+  let balTaxable = parseFloat(cfg.accounts.taxable.initial) || 0;
+  let bookTaxable = balTaxable; // 簿価 (元本)
+
+  let balOldNisa = parseFloat(cfg.accounts.oldNisa.initial) || 0;
+  let oldNisaTransferred = false;
+
+  let balNewNisa = parseFloat(cfg.accounts.newNisa.initial) || 0;
+  let bookNewNisa = Math.min(balNewNisa, NISA_LIFETIME_LIMIT); // 生涯枠カウント用簿価
+
+  let balDc = parseFloat(cfg.accounts.dc.initial) || 0;
+  let dcReceived = false;
+  let dcNetTransferred = 0;
+  let dcTaxPaid = 0;
+
+  let balStock = parseFloat(cfg.accounts.stock.initial) || 0;
+
+  // DCの通算年数計算
+  const dcYearsPast = parseFloat(cfg.accounts.dc.yearsPast) || 0;
+
+  const records = [];
+
+  // 初期状態 (0年目 / 現在の年齢)
+  records.push({
+    age: currentAge,
+    year: 0,
+    totalAssets: balTaxable + balOldNisa + balNewNisa + balDc + balStock,
+    taxable: balTaxable,
+    oldNisa: balOldNisa,
+    newNisa: balNewNisa,
+    dc: balDc,
+    stock: balStock,
+    annualContribute: 0,
+    annualGain: 0,
+    annualPension: 0,
+    dcTransfer: 0,
+    annualWithdraw: 0,
+    status: 'initial'
+  });
+
+  for (let y = 1; y <= totalYears; y++) {
+    const age = currentAge + y;
+    let yearContributeTotal = 0;
+    let yearGainTotal = 0;
+    let dcTransferThisYear = 0;
+
+    // -------------------------------------------------------------
+    // 1. 各口座の積立・運用複利計算
+    // -------------------------------------------------------------
+
+    // ① 特定口座
+    let taxableMonthly = 0;
+    if (age <= cfg.accounts.taxable.endAge) {
+      taxableMonthly = parseFloat(cfg.accounts.taxable.monthly) || 0;
+    }
+    const taxableAnnualContribute = taxableMonthly * 12;
+    const taxableRate = (parseFloat(cfg.accounts.taxable.rate) || 0) / 100;
+    const taxableGain = (balTaxable + taxableAnnualContribute * 0.5) * taxableRate;
+    balTaxable += taxableAnnualContribute + taxableGain;
+    bookTaxable += taxableAnnualContribute;
+    yearContributeTotal += taxableAnnualContribute;
+    yearGainTotal += taxableGain;
+
+    // ② 旧NISA口座
+    let oldNisaGain = 0;
+    if (!oldNisaTransferred && balOldNisa > 0) {
+      const oldNisaRate = (parseFloat(cfg.accounts.oldNisa.rate) || 0) / 100;
+      oldNisaGain = balOldNisa * oldNisaRate;
+      balOldNisa += oldNisaGain;
+      yearGainTotal += oldNisaGain;
+
+      // 指定移管年齢に到達した場合、非課税で特定口座へ全額移管
+      if (age >= cfg.accounts.oldNisa.transferAge) {
+        balTaxable += balOldNisa;
+        bookTaxable += balOldNisa; // 移管時時価が新たな特定口座の簿価となる
+        balOldNisa = 0;
+        oldNisaTransferred = true;
+      }
+    }
+
+    // ③ 新NISA口座
+    let newNisaMonthly = 0;
+    if (age <= cfg.accounts.newNisa.endAge) {
+      newNisaMonthly = parseFloat(cfg.accounts.newNisa.monthly) || 0;
+    }
+    // 生涯投資枠1,800万円のチェック
+    let newNisaAnnualContribute = newNisaMonthly * 12;
+    if (bookNewNisa + newNisaAnnualContribute > NISA_LIFETIME_LIMIT) {
+      newNisaAnnualContribute = Math.max(0, NISA_LIFETIME_LIMIT - bookNewNisa);
+    }
+    bookNewNisa += newNisaAnnualContribute;
+    const newNisaRate = (parseFloat(cfg.accounts.newNisa.rate) || 0) / 100;
+    const newNisaGain = (balNewNisa + newNisaAnnualContribute * 0.5) * newNisaRate;
+    balNewNisa += newNisaAnnualContribute + newNisaGain;
+    yearContributeTotal += newNisaAnnualContribute;
+    yearGainTotal += newNisaGain;
+
+    // ④ 確定拠出年金 (DC/iDeCo)
+    let dcMonthly = 0;
+    if (!dcReceived) {
+      if (age <= cfg.accounts.dc.endAge) {
+        dcMonthly = parseFloat(cfg.accounts.dc.monthly) || 0;
+      }
+      const dcAnnualContribute = dcMonthly * 12;
+      const dcRate = (parseFloat(cfg.accounts.dc.rate) || 0) / 100;
+      const dcGain = (balDc + dcAnnualContribute * 0.5) * dcRate;
+      balDc += dcAnnualContribute + dcGain;
+      yearContributeTotal += dcAnnualContribute;
+      yearGainTotal += dcGain;
+
+      // 退職金受取年齢に到達した場合
+      if (age >= cfg.accounts.dc.receiveAge) {
+        const totalDcYears = dcYearsPast + (age - currentAge);
+        const taxResult = calcRetirementTax(balDc, totalDcYears);
+        dcNetTransferred = taxResult.netAmount;
+        dcTaxPaid = taxResult.totalTax;
+        dcTransferThisYear = dcNetTransferred;
+
+        // 手取り額を特定口座へ移管
+        balTaxable += dcNetTransferred;
+        bookTaxable += dcNetTransferred;
+        balDc = 0;
+        dcReceived = true;
+      }
+    }
+
+    // ⑤ 株式現物口座
+    const stockMonthly = parseFloat(cfg.accounts.stock.monthly) || 0;
+    const stockAnnualContribute = stockMonthly * 12;
+    const stockRate = (parseFloat(cfg.accounts.stock.rate) || 0) / 100;
+    const stockGain = (balStock + stockAnnualContribute * 0.5) * stockRate;
+    balStock += stockAnnualContribute + stockGain;
+    yearContributeTotal += stockAnnualContribute;
+    yearGainTotal += stockGain;
+
+    // -------------------------------------------------------------
+    // 2. 年金受給 (公的年金)
+    // -------------------------------------------------------------
+    let annualPension = 0;
+    if (age >= cfg.pension.startAge) {
+      annualPension = (parseFloat(cfg.pension.monthly) || 0) * 12;
+    }
+
+    // -------------------------------------------------------------
+    // 3. 取り崩し処理 (特定口座 → 旧NISA → 新NISA 順、現物株除外)
+    // -------------------------------------------------------------
+    let annualWithdrawTarget = 0;
+    let actualWithdraw = 0;
+
+    if (age >= cfg.withdraw.startAge) {
+      if (cfg.withdraw.type === 'fixed-amount') {
+        annualWithdrawTarget = (parseFloat(cfg.withdraw.monthly) || 0) * 12;
+      } else {
+        // 定率取り崩し (対象3口座の前年末/運用後残高合計に対する割合)
+        const withdrawableTotal = balTaxable + balOldNisa + balNewNisa;
+        const withdrawRate = (parseFloat(cfg.withdraw.rate) || 0) / 100;
+        annualWithdrawTarget = withdrawableTotal * withdrawRate;
+      }
+
+      let remainingToWithdraw = annualWithdrawTarget;
+
+      // 優先順位1位: 特定口座から取り崩し
+      if (remainingToWithdraw > 0 && balTaxable > 0) {
+        const drawTaxable = Math.min(balTaxable, remainingToWithdraw);
+        balTaxable -= drawTaxable;
+        remainingToWithdraw -= drawTaxable;
+        actualWithdraw += drawTaxable;
+      }
+
+      // 優先順位2位: 旧NISAから取り崩し (移管前の残高がある場合)
+      if (remainingToWithdraw > 0 && balOldNisa > 0) {
+        const drawOldNisa = Math.min(balOldNisa, remainingToWithdraw);
+        balOldNisa -= drawOldNisa;
+        remainingToWithdraw -= drawOldNisa;
+        actualWithdraw += drawOldNisa;
+      }
+
+      // 優先順位3位: 新NISAから取り崩し
+      if (remainingToWithdraw > 0 && balNewNisa > 0) {
+        const drawNewNisa = Math.min(balNewNisa, remainingToWithdraw);
+        balNewNisa -= drawNewNisa;
+        remainingToWithdraw -= drawNewNisa;
+        actualWithdraw += drawNewNisa;
+      }
+
+      // 株式現物は取り崩さない (温存)
+    }
+
+    const totalAssets = balTaxable + balOldNisa + balNewNisa + balDc + balStock;
+
+    records.push({
+      age,
+      year: y,
+      totalAssets: Math.round(totalAssets * 10) / 10,
+      taxable: Math.round(balTaxable * 10) / 10,
+      oldNisa: Math.round(balOldNisa * 10) / 10,
+      newNisa: Math.round(balNewNisa * 10) / 10,
+      dc: Math.round(balDc * 10) / 10,
+      stock: Math.round(balStock * 10) / 10,
+      annualContribute: Math.round(yearContributeTotal * 10) / 10,
+      annualGain: Math.round(yearGainTotal * 10) / 10,
+      annualPension: Math.round(annualPension * 10) / 10,
+      dcTransfer: Math.round(dcTransferThisYear * 10) / 10,
+      annualWithdraw: Math.round(actualWithdraw * 10) / 10,
+      targetWithdraw: Math.round(annualWithdrawTarget * 10) / 10
+    });
+  }
+
+  // サマリー計算
+  let peakAssetRecord = records[0];
+  let totalPensionReceived = 0;
+  for (const r of records) {
+    if (r.totalAssets > peakAssetRecord.totalAssets) {
+      peakAssetRecord = r;
+    }
+    totalPensionReceived += r.annualPension;
+  }
+
+  const record100 = records[records.length - 1];
+
+  return {
+    records,
+    summary: {
+      peakAssets: peakAssetRecord.totalAssets,
+      peakAge: peakAssetRecord.age,
+      finalAssets: record100.totalAssets,
+      finalTaxable: record100.taxable,
+      finalStock: record100.stock,
+      totalPension: Math.round(totalPensionReceived),
+      dcNet: dcNetTransferred,
+      dcTax: dcTaxPaid,
+      nisaBookTotal: bookNewNisa
+    }
+  };
+}
 
 // ============================================================================
-// UI & Chart Renderer
+// UI Controllers & Renderers
 // ============================================================================
 let mainChartInstance = null;
-let donutChartInstance = null;
 
-const ChartManager = {
-  initCharts() {
-    const ctxMain = document.getElementById('mainChart').getContext('2d');
-    const ctxDonut = document.getElementById('donutChart').getContext('2d');
+/**
+ * フォーム要素とStateのバインディング
+ */
+function syncStateToUI() {
+  // 基本プロファイル
+  setInputValue('range-current-age', state.currentAge);
+  setInputValue('input-current-age', state.currentAge);
+  setText('disp-current-age', state.currentAge);
 
-    const isDark = state.theme === 'dark';
-    const gridColor = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)';
-    const textColor = isDark ? '#94a3b8' : '#475569';
+  // ① 特定口座
+  setInputValue('range-taxable-initial', state.accounts.taxable.initial);
+  setInputValue('taxable-initial', state.accounts.taxable.initial);
+  setText('disp-taxable-initial', state.accounts.taxable.initial);
+  setInputValue('taxable-monthly', state.accounts.taxable.monthly);
+  setText('disp-taxable-monthly', state.accounts.taxable.monthly);
+  setInputValue('taxable-rate', state.accounts.taxable.rate);
+  setText('disp-taxable-rate', state.accounts.taxable.rate);
+  setInputValue('taxable-end-age', state.accounts.taxable.endAge);
+  setText('disp-taxable-end-age', state.accounts.taxable.endAge);
+  setText('sum-taxable', `初期 ${state.accounts.taxable.initial}万 / 積立 ${state.accounts.taxable.monthly}万`);
 
-    // Main Chart
-    mainChartInstance = new Chart(ctxMain, {
+  // ② 旧NISA
+  setInputValue('range-oldnisa-initial', state.accounts.oldNisa.initial);
+  setInputValue('oldnisa-initial', state.accounts.oldNisa.initial);
+  setText('disp-oldnisa-initial', state.accounts.oldNisa.initial);
+  setInputValue('oldnisa-rate', state.accounts.oldNisa.rate);
+  setText('disp-oldnisa-rate', state.accounts.oldNisa.rate);
+  setInputValue('oldnisa-transfer-age', state.accounts.oldNisa.transferAge);
+  setText('disp-oldnisa-transfer-age', state.accounts.oldNisa.transferAge);
+  setText('sum-oldnisa', `初期 ${state.accounts.oldNisa.initial}万 / ${state.accounts.oldNisa.transferAge}歳移管`);
+
+  // ③ 新NISA
+  setInputValue('range-newnisa-initial', state.accounts.newNisa.initial);
+  setInputValue('newnisa-initial', state.accounts.newNisa.initial);
+  setText('disp-newnisa-initial', state.accounts.newNisa.initial);
+  setInputValue('newnisa-monthly', state.accounts.newNisa.monthly);
+  setText('disp-newnisa-monthly', state.accounts.newNisa.monthly);
+  setInputValue('newnisa-rate', state.accounts.newNisa.rate);
+  setText('disp-newnisa-rate', state.accounts.newNisa.rate);
+  setInputValue('newnisa-end-age', state.accounts.newNisa.endAge);
+  setText('disp-newnisa-end-age', state.accounts.newNisa.endAge);
+  setText('sum-newnisa', `初期 ${state.accounts.newNisa.initial}万 / 積立 ${state.accounts.newNisa.monthly}万`);
+
+  // ④ DC
+  setInputValue('range-dc-initial', state.accounts.dc.initial);
+  setInputValue('dc-initial', state.accounts.dc.initial);
+  setText('disp-dc-initial', state.accounts.dc.initial);
+  setInputValue('dc-monthly', state.accounts.dc.monthly);
+  setText('disp-dc-monthly', state.accounts.dc.monthly);
+  setInputValue('dc-rate', state.accounts.dc.rate);
+  setText('disp-dc-rate', state.accounts.dc.rate);
+  setInputValue('dc-end-age', state.accounts.dc.endAge);
+  setText('disp-dc-end-age', state.accounts.dc.endAge);
+  setInputValue('dc-receive-age', state.accounts.dc.receiveAge);
+  setText('disp-dc-receive-age', state.accounts.dc.receiveAge);
+  setInputValue('dc-years-past', state.accounts.dc.yearsPast);
+  setText('disp-dc-years-past', state.accounts.dc.yearsPast);
+  setText('sum-dc', `初期 ${state.accounts.dc.initial}万 / 拠出 ${state.accounts.dc.monthly}万`);
+
+  // ⑤ 株式現物
+  setInputValue('range-stock-initial', state.accounts.stock.initial);
+  setInputValue('stock-initial', state.accounts.stock.initial);
+  setText('disp-stock-initial', state.accounts.stock.initial);
+  setInputValue('stock-monthly', state.accounts.stock.monthly);
+  setText('disp-stock-monthly', state.accounts.stock.monthly);
+  setInputValue('stock-rate', state.accounts.stock.rate);
+  setText('disp-stock-rate', state.accounts.stock.rate);
+  setText('sum-stock', `初期 ${state.accounts.stock.initial}万 / 買増 ${state.accounts.stock.monthly}万`);
+
+  // 公的年金
+  setInputValue('pension-start-age', state.pension.startAge);
+  setText('disp-pension-start-age', state.pension.startAge);
+  setInputValue('pension-monthly', state.pension.monthly);
+  setText('disp-pension-monthly', state.pension.monthly);
+  setText('disp-pension-annual', Math.round(state.pension.monthly * 12));
+
+  // 取り崩し
+  setInputValue('range-withdraw-start-age', state.withdraw.startAge);
+  setInputValue('withdraw-start-age', state.withdraw.startAge);
+  setText('disp-withdraw-start-age', state.withdraw.startAge);
+
+  const radioType = document.querySelector(`input[name="withdraw-type"][value="${state.withdraw.type}"]`);
+  if (radioType) radioType.checked = true;
+
+  if (state.withdraw.type === 'fixed-amount') {
+    document.getElementById('box-withdraw-amount').classList.remove('hidden');
+    document.getElementById('box-withdraw-rate').classList.add('hidden');
+  } else {
+    document.getElementById('box-withdraw-amount').classList.add('hidden');
+    document.getElementById('box-withdraw-rate').classList.remove('hidden');
+  }
+
+  setInputValue('range-withdraw-monthly', state.withdraw.monthly);
+  setInputValue('withdraw-monthly', state.withdraw.monthly);
+  setText('disp-withdraw-monthly', state.withdraw.monthly);
+  setText('disp-withdraw-annual', Math.round(state.withdraw.monthly * 12));
+
+  setInputValue('range-withdraw-rate', state.withdraw.rate);
+  setInputValue('withdraw-rate', state.withdraw.rate);
+  setText('disp-withdraw-rate', state.withdraw.rate);
+
+  // NISA Progress
+  const nisaInitial = parseFloat(state.accounts.newNisa.initial) || 0;
+  const fillPct = Math.min(100, Math.round((nisaInitial / NISA_LIFETIME_LIMIT) * 100));
+  const elFill = document.getElementById('nisa-limit-fill');
+  if (elFill) elFill.style.width = `${fillPct}%`;
+  setText('nisa-limit-fill-info', `${nisaInitial}万 / 1,800万 (${fillPct}%)`);
+}
+
+function setInputValue(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.value = val;
+}
+
+function setText(id, text) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = text;
+}
+
+/**
+ * UIからStateを読み取って更新
+ */
+function readStateFromUI() {
+  state.currentAge = parseInt(document.getElementById('input-current-age').value, 10) || 35;
+
+  state.accounts.taxable.initial = parseFloat(document.getElementById('taxable-initial').value) || 0;
+  state.accounts.taxable.monthly = parseFloat(document.getElementById('taxable-monthly').value) || 0;
+  state.accounts.taxable.rate = parseFloat(document.getElementById('taxable-rate').value) || 0;
+  state.accounts.taxable.endAge = parseInt(document.getElementById('taxable-end-age').value, 10) || 60;
+
+  state.accounts.oldNisa.initial = parseFloat(document.getElementById('oldnisa-initial').value) || 0;
+  state.accounts.oldNisa.rate = parseFloat(document.getElementById('oldnisa-rate').value) || 0;
+  state.accounts.oldNisa.transferAge = parseInt(document.getElementById('oldnisa-transfer-age').value, 10) || 40;
+
+  state.accounts.newNisa.initial = parseFloat(document.getElementById('newnisa-initial').value) || 0;
+  state.accounts.newNisa.monthly = parseFloat(document.getElementById('newnisa-monthly').value) || 0;
+  state.accounts.newNisa.rate = parseFloat(document.getElementById('newnisa-rate').value) || 0;
+  state.accounts.newNisa.endAge = parseInt(document.getElementById('newnisa-end-age').value, 10) || 60;
+
+  state.accounts.dc.initial = parseFloat(document.getElementById('dc-initial').value) || 0;
+  state.accounts.dc.monthly = parseFloat(document.getElementById('dc-monthly').value) || 0;
+  state.accounts.dc.rate = parseFloat(document.getElementById('dc-rate').value) || 0;
+  state.accounts.dc.endAge = parseInt(document.getElementById('dc-end-age').value, 10) || 60;
+  state.accounts.dc.receiveAge = parseInt(document.getElementById('dc-receive-age').value, 10) || 60;
+  state.accounts.dc.yearsPast = parseFloat(document.getElementById('dc-years-past').value) || 0;
+
+  state.accounts.stock.initial = parseFloat(document.getElementById('stock-initial').value) || 0;
+  state.accounts.stock.monthly = parseFloat(document.getElementById('stock-monthly').value) || 0;
+  state.accounts.stock.rate = parseFloat(document.getElementById('stock-rate').value) || 0;
+
+  state.pension.startAge = parseInt(document.getElementById('pension-start-age').value, 10) || 65;
+  state.pension.monthly = parseFloat(document.getElementById('pension-monthly').value) || 0;
+
+  state.withdraw.startAge = parseInt(document.getElementById('withdraw-start-age').value, 10) || 65;
+  const checkedRadio = document.querySelector('input[name="withdraw-type"]:checked');
+  if (checkedRadio) state.withdraw.type = checkedRadio.value;
+
+  state.withdraw.monthly = parseFloat(document.getElementById('withdraw-monthly').value) || 0;
+  state.withdraw.rate = parseFloat(document.getElementById('withdraw-rate').value) || 0;
+
+  // LocalStorageに保存
+  saveStateToLocalStorage();
+}
+
+/**
+ * シミュレーションの実行と全画面更新
+ */
+function updateSimulation() {
+  readStateFromUI();
+  const sim = runSimulation(state);
+
+  // 1. KPI更新
+  setText('kpi-peak-assets', formatNumber(sim.summary.peakAssets));
+  setText('kpi-peak-age', `${sim.summary.peakAge} 歳到達時`);
+  setText('kpi-100-assets', formatNumber(sim.summary.finalAssets));
+  setText('kpi-100-status', sim.summary.finalAssets > 0 ? (sim.summary.finalAssets > 2000 ? '資産潤沢' : '資産維持') : '資産枯渇');
+  setText('kpi-dc-net', formatNumber(sim.summary.dcNet));
+  setText('kpi-dc-tax-saved', `税引前: ${formatNumber(sim.summary.dcNet + sim.summary.dcTax)}万 (税額 ${formatNumber(sim.summary.dcTax)}万)`);
+  setText('kpi-pension-total', formatNumber(sim.summary.totalPension));
+  setText('kpi-pension-span', `${state.pension.startAge}歳〜100歳 (月${state.pension.monthly}万)`);
+
+  // DCプレビューボックス更新
+  const dcReceiveRecord = sim.records.find(r => r.age === state.accounts.dc.receiveAge);
+  if (dcReceiveRecord && sim.summary.dcNet > 0) {
+    const grossDc = sim.summary.dcNet + sim.summary.dcTax;
+    const totalDcYears = state.accounts.dc.yearsPast + (state.accounts.dc.receiveAge - state.currentAge);
+    const taxInfo = calcRetirementTax(grossDc, totalDcYears);
+    setText('preview-dc-total', formatNumber(grossDc));
+    setText('preview-dc-years', `${taxInfo.years}`);
+    setText('preview-dc-deduction', formatNumber(taxInfo.deduction));
+    setText('preview-dc-tax', formatNumber(taxInfo.totalTax));
+    setText('preview-dc-net', formatNumber(taxInfo.netAmount));
+  } else {
+    setText('preview-dc-total', '-');
+    setText('preview-dc-years', '-');
+    setText('preview-dc-deduction', '-');
+    setText('preview-dc-tax', '-');
+    setText('preview-dc-net', '-');
+  }
+
+  // 2. グラフ描画更新
+  renderChart(sim.records);
+
+  // 3. マイルストーン描画 (60歳〜100歳 10歳刻み)
+  renderMilestones(sim.records);
+
+  // 4. 全年齢詳細テーブル描画
+  renderDetailTable(sim.records);
+}
+
+/**
+ * マイルストーンの描画 (60, 70, 80, 90, 100歳)
+ */
+function renderMilestones(records) {
+  const targetAges = [60, 70, 80, 90, 100];
+  const container = document.getElementById('milestone-cards-container');
+  const tableBody = document.getElementById('milestone-table-body');
+  
+  if (!container || !tableBody) return;
+
+  container.innerHTML = '';
+  tableBody.innerHTML = '';
+
+  targetAges.forEach(targetAge => {
+    // レコード取得 (存在しない場合は最終または最寄りのレコード)
+    const rec = records.find(r => r.age === targetAge) || records[records.length - 1];
+    if (!rec) return;
+
+    // 健全性ステータス判定
+    let statusClass = 'status-rich';
+    let statusText = '潤沢';
+    if (rec.totalAssets <= 0) {
+      statusClass = 'status-depleted';
+      statusText = '枯渇';
+    } else if (rec.totalAssets < 1000) {
+      statusClass = 'status-warning';
+      statusText = '要注意';
+    } else if (rec.totalAssets < 3000) {
+      statusClass = 'status-stable';
+      statusText = '安定';
+    }
+
+    // 1. マイルストーンカード生成
+    const card = document.createElement('div');
+    card.className = 'milestone-card';
+    card.innerHTML = `
+      <div class="m-header">
+        <span class="m-age"><i data-lucide="calendar"></i> ${targetAge} 歳時点</span>
+        <span class="m-status-badge ${statusClass}">${statusText}</span>
+      </div>
+      <div class="m-total">
+        <span class="m-total-label">総資産額</span>
+        <span class="m-total-val">${formatNumber(rec.totalAssets)} <small style="font-size:0.7rem;">万円</small></span>
+      </div>
+      <div class="m-breakdown">
+        <div class="m-row"><span>特定口座:</span><strong>${formatNumber(rec.taxable)} 万</strong></div>
+        <div class="m-row"><span>旧NISA:</span><strong>${formatNumber(rec.oldNisa)} 万</strong></div>
+        <div class="m-row"><span>新NISA:</span><strong>${formatNumber(rec.newNisa)} 万</strong></div>
+        <div class="m-row"><span>確定拠出(DC):</span><strong>${formatNumber(rec.dc)} 万</strong></div>
+        <div class="m-row"><span>株式現物:</span><strong>${formatNumber(rec.stock)} 万</strong></div>
+      </div>
+      <div class="m-cashflow-row">
+        <span>年金: <strong>${rec.annualPension > 0 ? formatNumber(rec.annualPension) + '万' : 'なし'}</strong></span>
+        <span>取崩し: <strong>${rec.annualWithdraw > 0 ? formatNumber(rec.annualWithdraw) + '万' : '0万'}</strong></span>
+      </div>
+    `;
+    container.appendChild(card);
+
+    // 2. マイルストーンテーブル行生成
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><strong>${targetAge} 歳時点</strong> (経過${rec.year}年)</td>
+      <td><strong style="color: var(--text-primary);">${formatNumber(rec.totalAssets)} 万円</strong></td>
+      <td style="color: var(--col-taxable);">${formatNumber(rec.taxable)} 万円</td>
+      <td style="color: var(--col-oldnisa);">${formatNumber(rec.oldNisa)} 万円</td>
+      <td style="color: var(--col-newnisa);">${formatNumber(rec.newNisa)} 万円</td>
+      <td style="color: var(--col-dc);">${formatNumber(rec.dc)} 万円</td>
+      <td style="color: var(--col-stock);">${formatNumber(rec.stock)} 万円</td>
+      <td>${rec.annualPension > 0 ? formatNumber(rec.annualPension) + ' 万円' : '-'}</td>
+      <td style="color: ${rec.annualWithdraw > 0 ? 'var(--col-danger)' : 'inherit'};">${rec.annualWithdraw > 0 ? formatNumber(rec.annualWithdraw) + ' 万円' : '-'}</td>
+      <td><span class="m-status-badge ${statusClass}">${statusText}</span></td>
+    `;
+    tableBody.appendChild(tr);
+  });
+
+  if (window.lucide) {
+    window.lucide.createIcons();
+  }
+}
+
+/**
+ * 全年齢詳細テーブルの描画
+ */
+function renderDetailTable(records) {
+  const tableBody = document.getElementById('full-detail-table-body');
+  if (!tableBody) return;
+
+  tableBody.innerHTML = '';
+
+  records.forEach(rec => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><strong>${rec.age} 歳</strong></td>
+      <td>${rec.year}年目</td>
+      <td><strong>${formatNumber(rec.totalAssets)} 万</strong></td>
+      <td>${rec.annualContribute > 0 ? '+' + formatNumber(rec.annualContribute) + ' 万' : '-'}</td>
+      <td style="color: ${rec.annualGain >= 0 ? 'var(--col-success)' : 'var(--col-danger)'};">${rec.annualGain >= 0 ? '+' : ''}${formatNumber(rec.annualGain)} 万</td>
+      <td>${rec.annualPension > 0 ? formatNumber(rec.annualPension) + ' 万' : '-'}</td>
+      <td style="color: var(--col-dc);">${rec.dcTransfer > 0 ? '+' + formatNumber(rec.dcTransfer) + ' 万 (移管)' : '-'}</td>
+      <td style="color: var(--col-taxable);">${formatNumber(rec.taxable)} 万</td>
+      <td style="color: var(--col-oldnisa);">${formatNumber(rec.oldNisa)} 万</td>
+      <td style="color: var(--col-newnisa);">${formatNumber(rec.newNisa)} 万</td>
+      <td style="color: var(--col-dc);">${formatNumber(rec.dc)} 万</td>
+      <td style="color: var(--col-stock);">${formatNumber(rec.stock)} 万</td>
+      <td style="color: ${rec.annualWithdraw > 0 ? 'var(--col-danger)' : 'inherit'};">${rec.annualWithdraw > 0 ? '-' + formatNumber(rec.annualWithdraw) + ' 万' : '-'}</td>
+    `;
+    tableBody.appendChild(tr);
+  });
+
+  setText('badge-table-rows', `${state.currentAge}歳〜100歳 (${records.length}行)`);
+}
+
+/**
+ * Chart.js グラフ描画
+ */
+function renderChart(records) {
+  const ctx = document.getElementById('mainChart');
+  if (!ctx) return;
+
+  const labels = records.map(r => `${r.age}歳`);
+
+  const dataTaxable = records.map(r => r.taxable);
+  const dataOldNisa = records.map(r => r.oldNisa);
+  const dataNewNisa = records.map(r => r.newNisa);
+  const dataDc = records.map(r => r.dc);
+  const dataStock = records.map(r => r.stock);
+  const dataTotal = records.map(r => r.totalAssets);
+
+  const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+  const gridColor = isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.06)';
+  const textColor = isDark ? '#9ca3af' : '#4b5563';
+
+  if (mainChartInstance) {
+    mainChartInstance.destroy();
+  }
+
+  if (state.chartType === 'stacked') {
+    // 口座別積み上げ面グラフ
+    mainChartInstance = new Chart(ctx, {
       type: 'line',
-      data: { labels: [], datasets: [] },
+      data: {
+        labels,
+        datasets: [
+          {
+            label: '株式現物 (温存)',
+            data: dataStock,
+            backgroundColor: 'rgba(244, 63, 94, 0.55)',
+            borderColor: '#f43f5e',
+            borderWidth: 1.5,
+            fill: true,
+            tension: 0.25,
+            pointRadius: 0
+          },
+          {
+            label: '確定拠出年金 (DC)',
+            data: dataDc,
+            backgroundColor: 'rgba(139, 92, 246, 0.55)',
+            borderColor: '#8b5cf6',
+            borderWidth: 1.5,
+            fill: true,
+            tension: 0.25,
+            pointRadius: 0
+          },
+          {
+            label: '新NISA (非課税)',
+            data: dataNewNisa,
+            backgroundColor: 'rgba(16, 185, 129, 0.55)',
+            borderColor: '#10b981',
+            borderWidth: 1.5,
+            fill: true,
+            tension: 0.25,
+            pointRadius: 0
+          },
+          {
+            label: '旧NISA (移管前)',
+            data: dataOldNisa,
+            backgroundColor: 'rgba(245, 158, 11, 0.55)',
+            borderColor: '#f59e0b',
+            borderWidth: 1.5,
+            fill: true,
+            tension: 0.25,
+            pointRadius: 0
+          },
+          {
+            label: '特定口座 (課税)',
+            data: dataTaxable,
+            backgroundColor: 'rgba(6, 182, 212, 0.55)',
+            borderColor: '#06b6d4',
+            borderWidth: 1.5,
+            fill: true,
+            tension: 0.25,
+            pointRadius: 0
+          }
+        ]
+      },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        interaction: {
-          mode: 'index',
-          intersect: false
-        },
+        interaction: { mode: 'index', intersect: false },
         plugins: {
-          legend: {
-            position: 'top',
-            labels: {
-              color: textColor,
-              font: { family: 'Plus Jakarta Sans', size: 12, weight: '600' },
-              usePointStyle: true,
-              pointStyle: 'circle',
-              padding: 16
-            }
-          },
+          legend: { display: false },
           tooltip: {
-            backgroundColor: isDark ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.95)',
-            titleColor: isDark ? '#f8fafc' : '#0f172a',
-            bodyColor: isDark ? '#cbd5e1' : '#334155',
-            borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
-            borderWidth: 1,
-            padding: 12,
-            boxPadding: 6,
-            usePointStyle: true,
             callbacks: {
-              label: function(context) {
-                let label = context.dataset.label || '';
-                if (label) label += ': ';
-                const val = context.parsed.y;
-                if (val !== null) {
-                  label += formatMoneyJapanese(val);
-                }
-                return label;
+              label: function(c) {
+                return `${c.dataset.label}: ${formatNumber(c.parsed.y)} 万円`;
+              },
+              footer: function(items) {
+                let sum = 0;
+                items.forEach(i => sum += i.parsed.y);
+                return `総資産額: ${formatNumber(sum)} 万円`;
               }
             }
           }
         },
         scales: {
-          x: {
-            grid: { color: gridColor },
-            ticks: {
-              color: textColor,
-              font: { family: 'Outfit', size: 11 }
-            }
-          },
-          y: {
-            grid: { color: gridColor },
-            ticks: {
-              color: textColor,
-              font: { family: 'Outfit', size: 11 },
-              callback: function(value) {
-                if (value >= 10000) return (value / 10000) + '億円';
-                return value + '万';
-              }
-            }
-          }
-        },
-        animation: {
-          duration: 600,
-          easing: 'easeOutQuart'
+          x: { grid: { color: gridColor }, ticks: { color: textColor, maxTicksLimit: 12 } },
+          y: { stacked: true, grid: { color: gridColor }, ticks: { color: textColor, callback: v => `${v}万` } }
         }
       }
     });
+  } else if (state.chartType === 'cashflow') {
+    // キャッシュフロー棒グラフ
+    const dataContribute = records.map(r => r.annualContribute);
+    const dataPension = records.map(r => r.annualPension);
+    const dataWithdraw = records.map(r => -r.annualWithdraw);
 
-    // Donut Chart
-    donutChartInstance = new Chart(ctxDonut, {
-      type: 'doughnut',
+    mainChartInstance = new Chart(ctx, {
+      type: 'bar',
       data: {
-        labels: ['投資元本', '運用収益'],
-        datasets: [{
-          data: [100, 0],
-          backgroundColor: ['#38bdf8', '#10b981'],
-          borderWidth: 0,
-          hoverOffset: 6
-        }]
+        labels,
+        datasets: [
+          {
+            label: '年間積立拠出',
+            data: dataContribute,
+            backgroundColor: 'rgba(99, 102, 241, 0.7)',
+            borderRadius: 4
+          },
+          {
+            label: '公的年金受給',
+            data: dataPension,
+            backgroundColor: 'rgba(245, 158, 11, 0.7)',
+            borderRadius: 4
+          },
+          {
+            label: '資産取り崩し (支出)',
+            data: dataWithdraw,
+            backgroundColor: 'rgba(239, 68, 68, 0.7)',
+            borderRadius: 4
+          }
+        ]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        cutout: '70%',
+        interaction: { mode: 'index', intersect: false },
         plugins: {
-          legend: { display: false },
+          legend: { display: true, position: 'top', labels: { color: textColor, boxWidth: 12 } },
           tooltip: {
-            backgroundColor: isDark ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.95)',
-            titleColor: isDark ? '#f8fafc' : '#0f172a',
-            bodyColor: isDark ? '#cbd5e1' : '#334155',
             callbacks: {
-              label: function(context) {
-                const val = context.parsed;
-                return `${context.label}: ${formatMoneyJapanese(val)}`;
+              label: function(c) {
+                return `${c.dataset.label}: ${formatNumber(Math.abs(c.parsed.y))} 万円`;
               }
             }
           }
+        },
+        scales: {
+          x: { grid: { color: gridColor }, ticks: { color: textColor, maxTicksLimit: 12 } },
+          y: { grid: { color: gridColor }, ticks: { color: textColor, callback: v => `${v}万` } }
         }
       }
     });
-  },
-
-  updateCharts(results) {
-    if (!mainChartInstance) return;
-
-    const isDark = state.theme === 'dark';
-    const gridColor = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)';
-    const textColor = isDark ? '#94a3b8' : '#475569';
-
-    mainChartInstance.options.scales.x.grid.color = gridColor;
-    mainChartInstance.options.scales.y.grid.color = gridColor;
-    mainChartInstance.options.scales.x.ticks.color = textColor;
-    mainChartInstance.options.scales.y.ticks.color = textColor;
-    mainChartInstance.options.plugins.legend.labels.color = textColor;
-
-    const donutContainer = document.getElementById('donut-container');
-
-    if (results.type === 'accumulate' || results.type === 'goal' || results.type === 'lifeplan') {
-      donutContainer.classList.remove('hidden');
-      const labels = results.yearlyData.map(d => `${d.year}年後 (${d.age}歳)`);
-      const investedData = results.yearlyData.map(d => d.invested);
-      const profitData = results.yearlyData.map(d => Math.max(0, d.netBalance !== undefined ? d.netBalance - d.invested : d.balance - d.invested));
-
-      if (state.chartType === 'area') {
-        mainChartInstance.config.type = 'line';
-        mainChartInstance.data = {
-          labels,
-          datasets: [
-            {
-              label: '投資元本',
-              data: investedData,
-              backgroundColor: 'rgba(56, 189, 248, 0.45)',
-              borderColor: '#38bdf8',
-              borderWidth: 2,
-              fill: 'origin',
-              tension: 0.3,
-              pointRadius: 2
-            },
-            {
-              label: '運用益 (総資産)',
-              data: results.yearlyData.map(d => d.netBalance !== undefined ? d.netBalance : d.balance),
-              backgroundColor: 'rgba(16, 185, 129, 0.35)',
-              borderColor: '#10b981',
-              borderWidth: 2.5,
-              fill: 0,
-              tension: 0.3,
-              pointRadius: 2
-            }
-          ]
-        };
-      } else if (state.chartType === 'bar') {
-        mainChartInstance.config.type = 'bar';
-        mainChartInstance.data = {
-          labels,
-          datasets: [
-            {
-              label: '投資元本',
-              data: investedData,
-              backgroundColor: '#38bdf8',
-              borderRadius: 4,
-              stack: 'stack0'
-            },
-            {
-              label: '運用益',
-              data: profitData,
-              backgroundColor: '#10b981',
-              borderRadius: 4,
-              stack: 'stack0'
-            }
-          ]
-        };
-      } else {
-        // Line chart
-        mainChartInstance.config.type = 'line';
-        mainChartInstance.data = {
-          labels,
-          datasets: [
-            {
-              label: '投資元本',
-              data: investedData,
-              borderColor: '#38bdf8',
-              backgroundColor: 'transparent',
-              borderWidth: 2,
-              tension: 0.2,
-              pointRadius: 3
-            },
-            {
-              label: '総資産額',
-              data: results.yearlyData.map(d => d.netBalance !== undefined ? d.netBalance : d.balance),
-              borderColor: '#10b981',
-              backgroundColor: 'transparent',
-              borderWidth: 2.5,
-              tension: 0.2,
-              pointRadius: 3
-            }
-          ]
-        };
-      }
-
-      // Update Donut Chart
-      const finalInvested = results.summary.totalInvested;
-      const finalProfit = results.summary.totalProfit;
-      donutChartInstance.data.datasets[0].data = [finalInvested, finalProfit];
-      donutChartInstance.update();
-
-      document.getElementById('legend-principal-val').innerText = formatMoneyJapanese(finalInvested);
-      document.getElementById('legend-profit-val').innerText = formatMoneyJapanese(finalProfit);
-
-    } else if (results.type === 'fire') {
-      donutContainer.classList.add('hidden');
-      const labels = results.yearlyData.map(d => `${d.year}年目 (${d.age}歳)`);
-      const balanceData = results.yearlyData.map(d => d.balance);
-      const withdrawnData = results.yearlyData.map(d => d.totalWithdrawn);
-
-      mainChartInstance.config.type = 'line';
-      mainChartInstance.data = {
+  } else {
+    // 口座別推移線
+    mainChartInstance = new Chart(ctx, {
+      type: 'line',
+      data: {
         labels,
         datasets: [
           {
-            label: '資産残高',
-            data: balanceData,
+            label: '総資産額',
+            data: dataTotal,
+            borderColor: '#ffffff',
+            borderWidth: 2.5,
+            tension: 0.2,
+            pointRadius: 0
+          },
+          {
+            label: '特定口座',
+            data: dataTaxable,
+            borderColor: '#06b6d4',
+            borderWidth: 1.8,
+            tension: 0.2,
+            pointRadius: 0
+          },
+          {
+            label: '旧NISA',
+            data: dataOldNisa,
             borderColor: '#f59e0b',
-            backgroundColor: 'rgba(245, 158, 11, 0.2)',
-            fill: true,
-            borderWidth: 2.5,
+            borderWidth: 1.8,
             tension: 0.2,
-            pointRadius: 2
+            pointRadius: 0
           },
           {
-            label: '累計取崩額',
-            data: withdrawnData,
-            borderColor: '#f43f5e',
-            backgroundColor: 'transparent',
-            borderWidth: 2,
-            borderDash: [5, 5],
-            tension: 0.2,
-            pointRadius: 2
-          }
-        ]
-      };
-
-    } else if (results.type === 'compare') {
-      donutContainer.classList.add('hidden');
-      const labels = results.planA.yearlyData.map(d => `${d.year}年後`);
-
-      mainChartInstance.config.type = 'line';
-      mainChartInstance.data = {
-        labels,
-        datasets: [
-          {
-            label: `プランA (月${state.compare.planA.monthly}万 / ${state.compare.planA.rate}%)`,
-            data: results.planA.yearlyData.map(d => d.netBalance),
-            borderColor: '#38bdf8',
-            borderWidth: 2.5,
-            tension: 0.2,
-            pointRadius: 2
-          },
-          {
-            label: `プランB (月${state.compare.planB.monthly}万 / ${state.compare.planB.rate}%)`,
-            data: results.planB.yearlyData.map(d => d.netBalance),
-            borderColor: '#818cf8',
-            borderWidth: 2.5,
-            tension: 0.2,
-            pointRadius: 2
-          },
-          {
-            label: `プランC (月${state.compare.planC.monthly}万 / ${state.compare.planC.rate}%)`,
-            data: results.planC.yearlyData.map(d => d.netBalance),
+            label: '新NISA',
+            data: dataNewNisa,
             borderColor: '#10b981',
-            borderWidth: 2.5,
+            borderWidth: 1.8,
             tension: 0.2,
-            pointRadius: 2
+            pointRadius: 0
+          },
+          {
+            label: '確定拠出年金 (DC)',
+            data: dataDc,
+            borderColor: '#8b5cf6',
+            borderWidth: 1.8,
+            tension: 0.2,
+            pointRadius: 0
+          },
+          {
+            label: '株式現物',
+            data: dataStock,
+            borderColor: '#f43f5e',
+            borderWidth: 1.8,
+            tension: 0.2,
+            pointRadius: 0
           }
         ]
-      };
-    }
-
-    mainChartInstance.update();
-  }
-};
-
-// ============================================================================
-// UI Updates & Syncing
-// ============================================================================
-function updateSimulator() {
-  let res;
-  switch (state.activeTab) {
-    case 'accumulate':
-      res = CalcEngine.calculateAccumulate(state.accumulate);
-      updateKPIsAccumulate(res);
-      updateInsightAccumulate(res);
-      updateTable(res);
-      break;
-    case 'goal':
-      res = CalcEngine.calculateGoal(state.goal);
-      updateKPIsGoal(res);
-      updateInsightGoal(res);
-      updateTable(res);
-      break;
-    case 'fire':
-      res = CalcEngine.calculateFire(state.fire);
-      updateKPIsFire(res);
-      updateInsightFire(res);
-      updateTableFire(res);
-      break;
-    case 'lifeplan':
-      res = CalcEngine.calculateLifePlan(state.lifeplan);
-      updateKPIsLifePlan(res);
-      updateInsightLifePlan(res);
-      updateTable(res);
-      break;
-    case 'compare':
-      res = CalcEngine.calculateCompare(state.compare);
-      updateKPIsCompare(res);
-      updateInsightCompare(res);
-      updateTableCompare(res);
-      break;
-  }
-
-  state.results = res;
-  ChartManager.updateCharts(res);
-  saveStateToLocalStorage();
-}
-
-function updateKPIsAccumulate(res) {
-  document.getElementById('kpi-main-label').innerText = `最終積立総額 (${state.accumulate.years}年後)`;
-  animateNumber('kpi-total-val', res.summary.totalBalance);
-  document.getElementById('kpi-total-sub').innerText = `（約 ${(res.summary.totalBalance / 10000).toFixed(2)} 億円）`;
-
-  document.getElementById('kpi-principal-label').innerText = '投資元本累計';
-  animateNumber('kpi-principal-val', res.summary.totalInvested);
-  const principalPct = res.summary.totalBalance > 0 ? (res.summary.totalInvested / res.summary.totalBalance * 100).toFixed(1) : 0;
-  document.getElementById('kpi-principal-pct').innerText = `元本割合 ${principalPct}%`;
-
-  document.getElementById('kpi-profit-label').innerText = '運用収益 (リターン)';
-  animateNumber('kpi-profit-val', res.summary.totalProfit, true);
-  document.getElementById('kpi-profit-pct').innerText = `+${res.summary.profitPercent.toFixed(1)}%`;
-
-  // Aux card
-  document.getElementById('kpi-aux-label').innerText = '新NISA節税効果';
-  animateNumber('kpi-aux-val', res.summary.taxSaved);
-  document.getElementById('kpi-aux-unit').innerText = '万円';
-  document.getElementById('kpi-aux-sub').innerText = '20.315%非課税メリット';
-}
-
-function updateKPIsGoal(res) {
-  document.getElementById('kpi-main-label').innerText = `毎月の必要積立額`;
-  animateNumber('kpi-total-val', res.summary.requiredMonthly);
-  document.getElementById('kpi-total-sub').innerText = `目標 ${formatMoneyJapanese(res.target)} 達成用`;
-
-  document.getElementById('kpi-principal-label').innerText = '投資元本累計';
-  animateNumber('kpi-principal-val', res.summary.totalInvested);
-  document.getElementById('kpi-principal-pct').innerText = `期間: ${res.summary.yearsToTarget}年間`;
-
-  document.getElementById('kpi-profit-label').innerText = '達成時 運用収益';
-  animateNumber('kpi-profit-val', res.summary.totalProfit, true);
-  document.getElementById('kpi-profit-pct').innerText = `+${res.summary.profitPercent.toFixed(1)}%`;
-
-  document.getElementById('kpi-aux-label').innerText = '目標資産到達額';
-  animateNumber('kpi-aux-val', res.summary.totalBalance);
-  document.getElementById('kpi-aux-unit').innerText = '万円';
-  document.getElementById('kpi-aux-sub').innerText = '年利 ' + state.goal.rate + '% 運用';
-}
-
-function updateKPIsFire(res) {
-  document.getElementById('kpi-main-label').innerText = res.summary.isSustained ? 'シミュレーション終了時残高' : '資産枯渇年齢';
-  if (res.summary.isSustained) {
-    animateNumber('kpi-total-val', res.summary.remainingBalance);
-    document.getElementById('kpi-total-sub').innerText = `資産維持成功 (${state.fire.years}年後)`;
-  } else {
-    document.getElementById('kpi-total-val').innerText = `${res.summary.depletedAge}歳`;
-    document.getElementById('kpi-total-sub').innerText = `開始から ${res.depletedYear} 年後に枯渇`;
-  }
-
-  document.getElementById('kpi-principal-label').innerText = '開始時資産額';
-  animateNumber('kpi-principal-val', res.summary.initialAssets);
-  document.getElementById('kpi-principal-pct').innerText = `${state.fire.startAge}歳時点`;
-
-  document.getElementById('kpi-profit-label').innerText = '累計取り崩し額';
-  animateNumber('kpi-profit-val', res.summary.totalWithdrawn);
-  document.getElementById('kpi-profit-pct').innerText = `手元に引き出した総額`;
-
-  document.getElementById('kpi-aux-label').innerText = '運用利回り';
-  document.getElementById('kpi-aux-val').innerText = `${state.fire.returnRate}`;
-  document.getElementById('kpi-aux-unit').innerText = '%';
-  document.getElementById('kpi-aux-sub').innerText = 'リタイア後の低リスク運用';
-}
-
-function updateKPIsLifePlan(res) {
-  document.getElementById('kpi-main-label').innerText = `最終資産残高 (${state.lifeplan.years}年後)`;
-  animateNumber('kpi-total-val', res.summary.totalBalance);
-  document.getElementById('kpi-total-sub').innerText = `（約 ${(res.summary.totalBalance / 10000).toFixed(2)} 億円）`;
-
-  document.getElementById('kpi-principal-label').innerText = '投資元本累計';
-  animateNumber('kpi-principal-val', res.summary.totalInvested);
-  document.getElementById('kpi-principal-pct').innerText = `積立 + 初期資産`;
-
-  document.getElementById('kpi-profit-label').innerText = '運用収益';
-  animateNumber('kpi-profit-val', res.summary.totalProfit, true);
-  document.getElementById('kpi-profit-pct').innerText = `+${res.summary.profitPercent.toFixed(1)}%`;
-
-  document.getElementById('kpi-aux-label').innerText = '登録イベント数';
-  document.getElementById('kpi-aux-val').innerText = `${res.summary.eventCount}`;
-  document.getElementById('kpi-aux-unit').innerText = '件';
-  document.getElementById('kpi-aux-sub').innerText = '人生の支出・収入を反映';
-}
-
-function updateKPIsCompare(res) {
-  const finalA = res.planA.summary.totalBalance;
-  const finalB = res.planB.summary.totalBalance;
-  const finalC = res.planC.summary.totalBalance;
-
-  document.getElementById('kpi-main-label').innerText = `プランB (標準) 最終額`;
-  animateNumber('kpi-total-val', finalB);
-  document.getElementById('kpi-total-sub').innerText = `${res.years}年後の資産`;
-
-  document.getElementById('kpi-principal-label').innerText = 'プランA (堅実)';
-  animateNumber('kpi-principal-val', finalA);
-  document.getElementById('kpi-principal-pct').innerText = `月${state.compare.planA.monthly}万 / ${state.compare.planA.rate}%`;
-
-  document.getElementById('kpi-profit-label').innerText = 'プランC (積極)';
-  animateNumber('kpi-profit-val', finalC);
-  document.getElementById('kpi-profit-pct').innerText = `月${state.compare.planC.monthly}万 / ${state.compare.planC.rate}%`;
-
-  document.getElementById('kpi-aux-label').innerText = '最大差額 (C vs A)';
-  animateNumber('kpi-aux-val', Math.round(finalC - finalA));
-  document.getElementById('kpi-aux-unit').innerText = '万円';
-  document.getElementById('kpi-aux-sub').innerText = '積立額と利回りの差';
-}
-
-// Insights Texts
-function updateInsightAccumulate(res) {
-  const years = state.accumulate.years;
-  const profit = res.summary.totalProfit;
-  const banner = document.getElementById('insight-text');
-  banner.innerHTML = `<strong>${years}年間</strong>の複利効果により、投資元本に対して<strong>+${formatMoneyJapanese(profit)}</strong>の運用収益が生まれました。新NISA活用で約<strong>${formatMoneyJapanese(res.summary.taxSaved)}</strong>の税金が免除されます。`;
-}
-
-function updateInsightGoal(res) {
-  const target = res.target;
-  const years = state.goal.years;
-  const monthly = res.summary.requiredMonthly;
-  const banner = document.getElementById('insight-text');
-  banner.innerHTML = `<strong>${years}年後</strong>に<strong>${formatMoneyJapanese(target)}</strong>を達成するには、年利${state.goal.rate}%で毎月<strong>${monthly}万円</strong>の積立が必要です。`;
-}
-
-function updateInsightFire(res) {
-  const banner = document.getElementById('insight-text');
-  if (res.summary.isSustained) {
-    banner.innerHTML = `年間取り崩しと年利${state.fire.returnRate}%の運用バランスが取れており、<strong>${state.fire.years}年後</strong>も資産が枯渇せず<strong>${formatMoneyJapanese(res.summary.remainingBalance)}</strong>残ります。`;
-  } else {
-    banner.innerHTML = `現在の取り崩しペースでは、<strong>${res.summary.depletedAge}歳 (開始から${res.depletedYear}年後)</strong>に資産が枯渇します。月々の支出を見直すか運用利回りの改善が推奨されます。`;
-  }
-}
-
-function updateInsightLifePlan(res) {
-  const banner = document.getElementById('insight-text');
-  banner.innerHTML = `設定された<strong>${state.lifeplan.events.length}件</strong>のライフイベント支出を吸収しながら、${state.lifeplan.years}年後には<strong>${formatMoneyJapanese(res.summary.totalBalance)}</strong>の資産形成が可能です。`;
-}
-
-function updateInsightCompare(res) {
-  const banner = document.getElementById('insight-text');
-  banner.innerHTML = `毎月の積立額と利回りの差により、${state.compare.years}年後にはプランAとプランCで<strong>${formatMoneyJapanese(res.planC.summary.totalBalance - res.planA.summary.totalBalance)}</strong>の資産格差が生じます。`;
-}
-
-// Table Rendering
-function updateTable(res) {
-  const thead = document.querySelector('#simulation-table thead tr');
-  thead.innerHTML = `
-    <th>経過年</th>
-    <th>年齢</th>
-    <th>投資累計額(元本)</th>
-    <th>年間利息</th>
-    <th>運用収益累計</th>
-    <th>資産残高(税引前)</th>
-    <th>新NISA非課税枠残高</th>
-    <th>手取り資産残高</th>
-  `;
-
-  const tbody = document.getElementById('simulation-table-body');
-  tbody.innerHTML = res.yearlyData.map(row => `
-    <tr>
-      <td>${row.year}年目</td>
-      <td>${row.age}歳</td>
-      <td>${formatMoneyJapanese(row.invested)}</td>
-      <td>${formatMoneyJapanese(row.interestThisYear)}</td>
-      <td class="text-profit">+${formatMoneyJapanese(row.profit)}</td>
-      <td>${formatMoneyJapanese(row.balance)}</td>
-      <td>${formatMoneyJapanese(row.nisaBalance)}</td>
-      <td><strong>${formatMoneyJapanese(row.netBalance !== undefined ? row.netBalance : row.balance)}</strong></td>
-    </tr>
-  `).join('');
-}
-
-function updateTableFire(res) {
-  const thead = document.querySelector('#simulation-table thead tr');
-  thead.innerHTML = `
-    <th>経過年</th>
-    <th>年齢</th>
-    <th>年間取り崩し額</th>
-    <th>年間運用利息</th>
-    <th>累計取崩額</th>
-    <th>期末資産残高</th>
-  `;
-
-  const tbody = document.getElementById('simulation-table-body');
-  tbody.innerHTML = res.yearlyData.map(row => `
-    <tr>
-      <td>${row.year}年目</td>
-      <td>${row.age}歳</td>
-      <td class="amount-expense">-${formatMoneyJapanese(row.annualWithdrawal)}</td>
-      <td class="text-profit">+${formatMoneyJapanese(row.annualInterest)}</td>
-      <td>${formatMoneyJapanese(row.totalWithdrawn)}</td>
-      <td><strong>${formatMoneyJapanese(row.balance)}</strong></td>
-    </tr>
-  `).join('');
-}
-
-function updateTableCompare(res) {
-  const thead = document.querySelector('#simulation-table thead tr');
-  thead.innerHTML = `
-    <th>経過年</th>
-    <th>プランA (堅実)</th>
-    <th>プランB (標準)</th>
-    <th>プランC (積極)</th>
-    <th>差額 (C - A)</th>
-  `;
-
-  const tbody = document.getElementById('simulation-table-body');
-  const rows = [];
-  const len = res.planA.yearlyData.length;
-  for (let i = 0; i < len; i++) {
-    const rA = res.planA.yearlyData[i];
-    const rB = res.planB.yearlyData[i];
-    const rC = res.planC.yearlyData[i];
-    rows.push(`
-      <tr>
-        <td>${rA.year}年後</td>
-        <td>${formatMoneyJapanese(rA.netBalance)}</td>
-        <td>${formatMoneyJapanese(rB.netBalance)}</td>
-        <td class="text-profit">${formatMoneyJapanese(rC.netBalance)}</td>
-        <td><strong>+${formatMoneyJapanese(rC.netBalance - rA.netBalance)}</strong></td>
-      </tr>
-    `);
-  }
-  tbody.innerHTML = rows.join('');
-}
-
-// ============================================================================
-// Helpers & Utilities
-// ============================================================================
-function formatMoneyJapanese(val) {
-  if (val === undefined || val === null) return '0万円';
-  const num = Math.round(val * 10) / 10;
-  if (Math.abs(num) >= 10000) {
-    const oku = (num / 10000).toFixed(2);
-    return `${oku}億円 (${num.toLocaleString()}万円)`;
-  }
-  return `${num.toLocaleString()}万円`;
-}
-
-function animateNumber(elementId, targetVal, isPositiveSign = false) {
-  const el = document.getElementById(elementId);
-  if (!el) return;
-  const num = Math.round(targetVal * 10) / 10;
-  el.innerText = (isPositiveSign && num > 0 ? '+' : '') + num.toLocaleString();
-}
-
-function showToast(message) {
-  const toast = document.getElementById('toast');
-  const toastMsg = document.getElementById('toast-message');
-  toastMsg.innerText = message;
-  toast.classList.remove('hidden');
-  setTimeout(() => {
-    toast.classList.add('hidden');
-  }, 2500);
-}
-
-// ============================================================================
-// Input Binding & Event Listeners
-// ============================================================================
-function setupInputBindings() {
-  // Synchronize Range Slider & Number Input
-  function bindSliderAndNumber(sliderId, numberId, valSpanId, statePath, updateCallback) {
-    const slider = document.getElementById(sliderId);
-    const numInput = document.getElementById(numberId);
-    const span = document.getElementById(valSpanId);
-
-    if (!slider || !numInput) return;
-
-    slider.addEventListener('input', (e) => {
-      const val = parseFloat(e.target.value);
-      numInput.value = val;
-      if (span) span.innerText = val;
-      setNestedProperty(state, statePath, val);
-      if (updateCallback) updateCallback();
-      updateSimulator();
-    });
-
-    numInput.addEventListener('input', (e) => {
-      const val = parseFloat(e.target.value) || 0;
-      slider.value = val;
-      if (span) span.innerText = val;
-      setNestedProperty(state, statePath, val);
-      if (updateCallback) updateCallback();
-      updateSimulator();
-    });
-  }
-
-  function setNestedProperty(obj, path, value) {
-    const keys = path.split('.');
-    let current = obj;
-    for (let i = 0; i < keys.length - 1; i++) {
-      current = current[keys[i]];
-    }
-    current[keys[keys.length - 1]] = value;
-  }
-
-  // Bind Tab 1 (Accumulate)
-  bindSliderAndNumber('acc-initial', 'acc-initial-num', 'acc-initial-val', 'accumulate.initial');
-  bindSliderAndNumber('acc-monthly', 'acc-monthly-num', 'acc-monthly-val', 'accumulate.monthly');
-  bindSliderAndNumber('acc-rate', 'acc-rate-num', 'acc-rate-val', 'accumulate.rate');
-  bindSliderAndNumber('acc-years', 'acc-years-num', 'acc-years-val', 'accumulate.years');
-  bindSliderAndNumber('acc-start-age', 'acc-start-age-num', 'acc-start-age-val', 'accumulate.startAge');
-  bindSliderAndNumber('acc-inflation', 'acc-inflation-num', 'acc-inflation-val', 'accumulate.inflation');
-
-  const nisaToggle = document.getElementById('acc-nisa-enabled');
-  if (nisaToggle) {
-    nisaToggle.addEventListener('change', (e) => {
-      state.accumulate.nisaEnabled = e.target.checked;
-      updateSimulator();
-    });
-  }
-
-  // Accordion for advanced settings
-  const btnAccAdvanced = document.getElementById('btn-acc-advanced');
-  const accAdvancedBody = document.getElementById('acc-advanced-body');
-  if (btnAccAdvanced && accAdvancedBody) {
-    btnAccAdvanced.addEventListener('click', () => {
-      btnAccAdvanced.classList.toggle('open');
-      accAdvancedBody.classList.toggle('hidden');
-    });
-  }
-
-  // Bind Tab 2 (Goal)
-  bindSliderAndNumber('goal-target', 'goal-target-num', 'goal-target-val', 'goal.target');
-  bindSliderAndNumber('goal-years', 'goal-years-num', 'goal-years-val', 'goal.years');
-  bindSliderAndNumber('goal-initial', 'goal-initial-num', 'goal-initial-val', 'goal.initial');
-  bindSliderAndNumber('goal-rate', 'goal-rate-num', 'goal-rate-val', 'goal.rate');
-
-  // Bind Tab 3 (FIRE)
-  bindSliderAndNumber('fire-assets', 'fire-assets-num', 'fire-assets-val', 'fire.assets');
-  bindSliderAndNumber('fire-monthly', 'fire-monthly-num', 'fire-monthly-val', 'fire.monthly');
-  bindSliderAndNumber('fire-rate-pct', 'fire-rate-pct-num', 'fire-rate-pct-val', 'fire.ratePct');
-  bindSliderAndNumber('fire-return-rate', 'fire-return-rate-num', 'fire-return-rate-val', 'fire.returnRate');
-  bindSliderAndNumber('fire-start-age', 'fire-start-age-num', 'fire-start-age-val', 'fire.startAge');
-  bindSliderAndNumber('fire-years', 'fire-years-num', 'fire-years-val', 'fire.years');
-
-  // FIRE Type Radios
-  document.querySelectorAll('input[name="fire-type"]').forEach(radio => {
-    radio.addEventListener('change', (e) => {
-      state.fire.type = e.target.value;
-      const fixedGroup = document.getElementById('fire-fixed-amount-group');
-      const rateGroup = document.getElementById('fire-fixed-rate-group');
-      if (e.target.value === 'fixed-amount') {
-        fixedGroup.classList.remove('hidden');
-        rateGroup.classList.add('hidden');
-      } else {
-        fixedGroup.classList.add('hidden');
-        rateGroup.classList.remove('hidden');
-      }
-      updateSimulator();
-    });
-  });
-
-  // Bind Tab 4 (Life Plan)
-  bindSliderAndNumber('lp-initial', 'lp-initial-num', 'lp-initial-val', 'lifeplan.initial');
-  bindSliderAndNumber('lp-monthly', 'lp-monthly-num', 'lp-monthly-val', 'lifeplan.monthly');
-  bindSliderAndNumber('lp-rate', 'lp-rate-num', 'lp-rate-val', 'lifeplan.rate');
-  bindSliderAndNumber('lp-years', 'lp-years-num', 'lp-years-val', 'lifeplan.years');
-
-  // Bind Tab 5 (Compare)
-  ['cmp-monthly-a', 'cmp-rate-a', 'cmp-monthly-b', 'cmp-rate-b', 'cmp-monthly-c', 'cmp-rate-c'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) {
-      el.addEventListener('input', () => {
-        state.compare.planA.monthly = parseFloat(document.getElementById('cmp-monthly-a').value) || 0;
-        state.compare.planA.rate = parseFloat(document.getElementById('cmp-rate-a').value) || 0;
-        state.compare.planB.monthly = parseFloat(document.getElementById('cmp-monthly-b').value) || 0;
-        state.compare.planB.rate = parseFloat(document.getElementById('cmp-rate-b').value) || 0;
-        state.compare.planC.monthly = parseFloat(document.getElementById('cmp-monthly-c').value) || 0;
-        state.compare.planC.rate = parseFloat(document.getElementById('cmp-rate-c').value) || 0;
-        updateSimulator();
-      });
-    }
-  });
-
-  bindSliderAndNumber('cmp-years', 'cmp-years-num', 'cmp-years-val', 'compare.years');
-  bindSliderAndNumber('cmp-initial', 'cmp-initial-num', 'cmp-initial-val', 'compare.initial');
-
-  // Tab Switching
-  document.querySelectorAll('.nav-tab').forEach(tabBtn => {
-    tabBtn.addEventListener('click', () => {
-      document.querySelectorAll('.nav-tab').forEach(b => {
-        b.classList.remove('active');
-        b.setAttribute('aria-selected', 'false');
-      });
-      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-
-      tabBtn.classList.add('active');
-      tabBtn.setAttribute('aria-selected', 'true');
-      const tabKey = tabBtn.getAttribute('data-tab');
-      state.activeTab = tabKey;
-
-      const targetContent = document.getElementById(`tab-${tabKey}`);
-      if (targetContent) targetContent.classList.add('active');
-
-      const presetsContainer = document.getElementById('presets-container');
-      if (tabKey === 'accumulate') {
-        presetsContainer.classList.remove('hidden');
-      } else {
-        presetsContainer.classList.add('hidden');
-      }
-
-      updateSimulator();
-    });
-  });
-
-  // Presets
-  document.querySelectorAll('.preset-chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      const presetKey = chip.getAttribute('data-preset');
-      const p = PRESETS[presetKey];
-      if (!p) return;
-
-      state.accumulate.initial = p.initial;
-      state.accumulate.monthly = p.monthly;
-      state.accumulate.rate = p.rate;
-      state.accumulate.years = p.years;
-      state.accumulate.startAge = p.startAge;
-      state.accumulate.nisaEnabled = p.nisaEnabled;
-
-      // Sync form DOM
-      syncInputsFromState('acc-initial', p.initial);
-      syncInputsFromState('acc-monthly', p.monthly);
-      syncInputsFromState('acc-rate', p.rate);
-      syncInputsFromState('acc-years', p.years);
-      syncInputsFromState('acc-start-age', p.startAge);
-      if (nisaToggle) nisaToggle.checked = p.nisaEnabled;
-
-      showToast(`プリセット「${chip.innerText}」を適用しました`);
-      updateSimulator();
-    });
-  });
-
-  // Chart Type Toggles
-  document.querySelectorAll('.btn-toggle').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.btn-toggle').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      state.chartType = btn.getAttribute('data-chart-type');
-      ChartManager.updateCharts(state.results);
-    });
-  });
-
-  // Table Visibility Toggle
-  const btnToggleTable = document.getElementById('btn-toggle-table');
-  const tableContainer = document.getElementById('table-container');
-  const toggleTableText = document.getElementById('toggle-table-text');
-  const toggleTableIcon = document.getElementById('toggle-table-icon');
-
-  if (btnToggleTable && tableContainer) {
-    btnToggleTable.addEventListener('click', () => {
-      state.tableVisible = !state.tableVisible;
-      if (state.tableVisible) {
-        tableContainer.classList.remove('hidden');
-        toggleTableText.innerText = '表を隠す';
-        toggleTableIcon.style.transform = 'rotate(180deg)';
-      } else {
-        tableContainer.classList.add('hidden');
-        toggleTableText.innerText = '表を表示する';
-        toggleTableIcon.style.transform = 'rotate(0deg)';
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function(c) {
+                return `${c.dataset.label}: ${formatNumber(c.parsed.y)} 万円`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: { grid: { color: gridColor }, ticks: { color: textColor, maxTicksLimit: 12 } },
+          y: { grid: { color: gridColor }, ticks: { color: textColor, callback: v => `${v}万` } }
+        }
       }
     });
   }
-
-  // Theme Toggle
-  const btnThemeToggle = document.getElementById('btn-theme-toggle');
-  const themeIconLight = document.getElementById('theme-icon-light');
-  const themeIconDark = document.getElementById('theme-icon-dark');
-
-  function applyTheme(th) {
-    state.theme = th;
-    document.documentElement.setAttribute('data-theme', th);
-    localStorage.setItem('wealth_sim_theme', th);
-    if (th === 'light') {
-      themeIconLight.classList.remove('hidden');
-      themeIconDark.classList.add('hidden');
-    } else {
-      themeIconLight.classList.add('hidden');
-      themeIconDark.classList.remove('hidden');
-    }
-    if (state.results) {
-      ChartManager.updateCharts(state.results);
-    }
-  }
-
-  if (btnThemeToggle) {
-    btnThemeToggle.addEventListener('click', () => {
-      applyTheme(state.theme === 'dark' ? 'light' : 'dark');
-    });
-  }
-  applyTheme(state.theme);
-
-  // CSV Export
-  const btnExportCsv = document.getElementById('btn-export-csv');
-  if (btnExportCsv) {
-    btnExportCsv.addEventListener('click', exportCSV);
-  }
-
-  // Reset Button
-  const btnReset = document.getElementById('btn-reset');
-  if (btnReset) {
-    btnReset.addEventListener('click', () => {
-      if (confirm('シミュレーション設定を初期化しますか？')) {
-        localStorage.removeItem('wealth_sim_state');
-        location.reload();
-      }
-    });
-  }
-
-  // Life Event Management
-  setupLifeEventHandlers();
-}
-
-function syncInputsFromState(baseId, val) {
-  const slider = document.getElementById(baseId);
-  const numInput = document.getElementById(`${baseId}-num`);
-  const span = document.getElementById(`${baseId}-val`);
-  if (slider) slider.value = val;
-  if (numInput) numInput.value = val;
-  if (span) span.innerText = val;
 }
 
 // ============================================================================
-// Life Events Modal & Management
+// JSON Export / Import & Storage
 // ============================================================================
-function setupLifeEventHandlers() {
-  const eventModal = document.getElementById('event-modal');
-  const btnAddEvent = document.getElementById('btn-add-event');
-  const btnCloseModal = document.getElementById('btn-close-modal');
-  const btnCancelModal = document.getElementById('btn-cancel-modal');
-  const btnSaveEvent = document.getElementById('btn-save-event');
-  const eventPresetDropdown = document.getElementById('event-preset-dropdown');
 
-  renderEventsList();
+/**
+ * 設定をJSONファイルとして保存 (ダウンロード)
+ */
+function exportSettingsAsJSON() {
+  readStateFromUI();
+  const exportData = {
+    appName: 'WealthBuildingSimulatorPro',
+    version: '2.0.0',
+    exportedAt: new Date().toISOString(),
+    config: state
+  };
 
-  if (btnAddEvent) {
-    btnAddEvent.addEventListener('click', () => {
-      document.getElementById('event-name').value = 'マイホーム購入';
-      document.getElementById('event-year').value = 5;
-      document.getElementById('event-amount').value = -500;
-      eventModal.classList.remove('hidden');
-    });
-  }
-
-  const closeModal = () => eventModal.classList.add('hidden');
-  if (btnCloseModal) btnCloseModal.addEventListener('click', closeModal);
-  if (btnCancelModal) btnCancelModal.addEventListener('click', closeModal);
-
-  if (eventPresetDropdown) {
-    eventPresetDropdown.addEventListener('change', (e) => {
-      const selected = e.target.options[e.target.selectedIndex];
-      if (selected.value) {
-        document.getElementById('event-name').value = selected.text.split(' (')[0];
-        document.getElementById('event-amount').value = selected.getAttribute('data-amount');
-        document.getElementById('event-year').value = selected.getAttribute('data-year');
-      }
-    });
-  }
-
-  if (btnSaveEvent) {
-    btnSaveEvent.addEventListener('click', () => {
-      const name = document.getElementById('event-name').value.trim() || '無題のイベント';
-      const year = parseInt(document.getElementById('event-year').value, 10) || 1;
-      const amount = parseFloat(document.getElementById('event-amount').value) || 0;
-
-      state.lifeplan.events.push({
-        id: 'evt-' + Date.now(),
-        name,
-        year,
-        amount
-      });
-
-      renderEventsList();
-      closeModal();
-      showToast('イベントを追加しました');
-      if (state.activeTab === 'lifeplan') updateSimulator();
-    });
-  }
-}
-
-function renderEventsList() {
-  const container = document.getElementById('events-list-container');
-  if (!container) return;
-
-  state.lifeplan.events.sort((a, b) => a.year - b.year);
-
-  container.innerHTML = state.lifeplan.events.map(evt => `
-    <div class="event-item" data-id="${evt.id}">
-      <div class="event-item-info">
-        <span class="event-item-name">${evt.name}</span>
-        <span class="event-item-timing">${evt.year}年後 (年齢: 約${30 + evt.year}歳)</span>
-      </div>
-      <div style="display: flex; align-items: center; gap: 10px;">
-        <span class="event-item-amount ${evt.amount < 0 ? 'amount-expense' : 'amount-income'}">
-          ${evt.amount > 0 ? '+' : ''}${evt.amount.toLocaleString()} 万円
-        </span>
-        <button type="button" class="btn-delete-event" title="削除" onclick="deleteLifeEvent('${evt.id}')">
-          <i data-lucide="trash-2"></i>
-        </button>
-      </div>
-    </div>
-  `).join('');
-
-  if (window.lucide) lucide.createIcons();
-}
-
-window.deleteLifeEvent = function(id) {
-  state.lifeplan.events = state.lifeplan.events.filter(e => e.id !== id);
-  renderEventsList();
-  showToast('イベントを削除しました');
-  if (state.activeTab === 'lifeplan') updateSimulator();
-};
-
-// ============================================================================
-// CSV Export Functionality (Excel UTF-8 BOM)
-// ============================================================================
-function exportCSV() {
-  if (!state.results || !state.results.yearlyData) return;
-
-  let csvContent = '\uFEFF'; // UTF-8 BOM for Japanese Excel compatibility
-  let headers = [];
-  let rows = [];
-
-  if (state.results.type === 'accumulate' || state.results.type === 'goal' || state.results.type === 'lifeplan') {
-    headers = ['経過年(年後)', '年齢(歳)', '投資元本累計(万円)', '年間運用益(万円)', '累計運用益(万円)', '税引前資産残高(万円)', '新NISA非課税枠残高(万円)', '手取り資産残高(万円)'];
-    rows = state.results.yearlyData.map(d => [
-      d.year,
-      d.age,
-      d.invested,
-      d.interestThisYear || 0,
-      d.profit,
-      d.balance,
-      d.nisaBalance || 0,
-      d.netBalance !== undefined ? d.netBalance : d.balance
-    ]);
-  } else if (state.results.type === 'fire') {
-    headers = ['経過年(年目)', '年齢(歳)', '年間取崩額(万円)', '年間運用利息(万円)', '累計取崩額(万円)', '期末資産残高(万円)'];
-    rows = state.results.yearlyData.map(d => [
-      d.year,
-      d.age,
-      d.annualWithdrawal,
-      d.annualInterest,
-      d.totalWithdrawn,
-      d.balance
-    ]);
-  } else if (state.results.type === 'compare') {
-    headers = ['経過年', 'プランA(万円)', 'プランB(万円)', 'プランC(万円)', '差額(C-A)(万円)'];
-    rows = state.results.planA.yearlyData.map((d, i) => [
-      `${d.year}年後`,
-      d.netBalance,
-      state.results.planB.yearlyData[i].netBalance,
-      state.results.planC.yearlyData[i].netBalance,
-      state.results.planC.yearlyData[i].netBalance - d.netBalance
-    ]);
-  }
-
-  csvContent += headers.join(',') + '\n';
-  rows.forEach(r => {
-    csvContent += r.join(',') + '\n';
-  });
-
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const jsonString = JSON.stringify(exportData, null, 2);
+  const blob = new Blob([jsonString], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.setAttribute('href', url);
-  link.setAttribute('download', `資産形成シミュレーション_${state.activeTab}_${new Date().toISOString().slice(0, 10)}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  showToast('CSVファイルをダウンロードしました');
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `wealth_simulation_config_${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  showToast('設定をJSONファイルとして保存しました', 'success');
 }
 
-// ============================================================================
-// State Persistence (LocalStorage)
-// ============================================================================
+/**
+ * JSONファイルを読み込んで設定を復元
+ */
+function importSettingsFromJSON(e) {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(evt) {
+    try {
+      const parsed = JSON.parse(evt.target.result);
+      const config = parsed.config || parsed;
+      if (!config.accounts || !config.currentAge) {
+        throw new Error('有効なシミュレーター設定ファイルではありません');
+      }
+
+      state = Object.assign({}, DEFAULT_STATE, config);
+      syncStateToUI();
+      updateSimulation();
+      showToast('設定ファイルを正常に読み込みました', 'success');
+    } catch (err) {
+      showToast('ファイルの読み込みに失敗しました: ' + err.message, 'error');
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = ''; // リセット
+}
+
+/**
+ * CSVエクスポート
+ */
+function exportTableCSV() {
+  const sim = runSimulation(state);
+  let csv = '年齢,経過年,総資産額(万円),年間積立(万円),年間運用益(万円),公的年金(万円),DC受取移管(万円),特定口座(万円),旧NISA(万円),新NISA(万円),確定拠出年金(万円),株式現物(万円),年間取崩し(万円)\n';
+
+  sim.records.forEach(r => {
+    csv += `${r.age},${r.year},${r.totalAssets},${r.annualContribute},${r.annualGain},${r.annualPension},${r.dcTransfer},${r.taxable},${r.oldNisa},${r.newNisa},${r.dc},${r.stock},${r.annualWithdraw}\n`;
+  });
+
+  const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `wealth_simulation_data_${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  showToast('CSVファイルをダウンロードしました', 'success');
+}
+
+/**
+ * LocalStorage 保存 & 読込
+ */
 function saveStateToLocalStorage() {
   try {
-    const toSave = {
-      accumulate: state.accumulate,
-      goal: state.goal,
-      fire: state.fire,
-      lifeplan: state.lifeplan,
-      compare: state.compare
-    };
-    localStorage.setItem('wealth_sim_state', JSON.stringify(toSave));
+    localStorage.setItem('wealth_sim_pro_state', JSON.stringify(state));
   } catch (e) {
-    console.warn('LocalStorage save failed:', e);
+    console.warn('LocalStorage error:', e);
   }
 }
 
 function loadStateFromLocalStorage() {
   try {
-    const saved = localStorage.getItem('wealth_sim_state');
+    const saved = localStorage.getItem('wealth_sim_pro_state');
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (parsed.accumulate) Object.assign(state.accumulate, parsed.accumulate);
-      if (parsed.goal) Object.assign(state.goal, parsed.goal);
-      if (parsed.fire) Object.assign(state.fire, parsed.fire);
-      if (parsed.lifeplan) Object.assign(state.lifeplan, parsed.lifeplan);
-      if (parsed.compare) Object.assign(state.compare, parsed.compare);
-
-      // Sync form DOM with loaded state
-      syncInputsFromState('acc-initial', state.accumulate.initial);
-      syncInputsFromState('acc-monthly', state.accumulate.monthly);
-      syncInputsFromState('acc-rate', state.accumulate.rate);
-      syncInputsFromState('acc-years', state.accumulate.years);
-      syncInputsFromState('acc-start-age', state.accumulate.startAge);
-      syncInputsFromState('acc-inflation', state.accumulate.inflation);
-      const nisaToggle = document.getElementById('acc-nisa-enabled');
-      if (nisaToggle) nisaToggle.checked = state.accumulate.nisaEnabled;
-
-      syncInputsFromState('goal-target', state.goal.target);
-      syncInputsFromState('goal-years', state.goal.years);
-      syncInputsFromState('goal-initial', state.goal.initial);
-      syncInputsFromState('goal-rate', state.goal.rate);
-
-      syncInputsFromState('fire-assets', state.fire.assets);
-      syncInputsFromState('fire-monthly', state.fire.monthly);
-      syncInputsFromState('fire-rate-pct', state.fire.ratePct);
-      syncInputsFromState('fire-return-rate', state.fire.returnRate);
-      syncInputsFromState('fire-start-age', state.fire.startAge);
-      syncInputsFromState('fire-years', state.fire.years);
-
-      syncInputsFromState('lp-initial', state.lifeplan.initial);
-      syncInputsFromState('lp-monthly', state.lifeplan.monthly);
-      syncInputsFromState('lp-rate', state.lifeplan.rate);
-      syncInputsFromState('lp-years', state.lifeplan.years);
-
-      syncInputsFromState('cmp-years', state.compare.years);
-      syncInputsFromState('cmp-initial', state.compare.initial);
+      state = Object.assign({}, DEFAULT_STATE, parsed);
     }
   } catch (e) {
-    console.warn('LocalStorage load failed:', e);
+    console.warn('LocalStorage load error:', e);
   }
 }
 
 // ============================================================================
-// Initialization
+// Utilities & Helpers
+// ============================================================================
+function formatNumber(num) {
+  if (num === null || num === undefined || isNaN(num)) return '0';
+  return Number(num).toLocaleString('ja-JP', { maximumFractionDigits: 1 });
+}
+
+function showToast(msg, type = 'info') {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  toast.innerHTML = `<i data-lucide="${type === 'success' ? 'check-circle' : 'alert-circle'}"></i> <span>${msg}</span>`;
+  container.appendChild(toast);
+
+  if (window.lucide) window.lucide.createIcons();
+
+  setTimeout(() => {
+    toast.style.animation = 'toastOut 0.25s ease-in forwards';
+    setTimeout(() => {
+      if (toast.parentNode) toast.parentNode.removeChild(toast);
+    }, 250);
+  }, 3500);
+}
+
+// ============================================================================
+// Event Listeners Initialization
 // ============================================================================
 document.addEventListener('DOMContentLoaded', () => {
-  if (window.lucide) {
-    lucide.createIcons();
+  // 1. LocalStorageから設定復元
+  loadStateFromLocalStorage();
+
+  // 2. テーマ初期化
+  const savedTheme = localStorage.getItem('wealth_sim_theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', savedTheme);
+  updateThemeIcon(savedTheme);
+
+  // 3. UIとState同期 & 初回シミュレーション実行
+  syncStateToUI();
+  updateSimulation();
+
+  // 4. イベントリスナー登録
+
+  // 入力変更リスナー (スライダー & 数値入力)
+  const form = document.getElementById('sim-form');
+  if (form) {
+    form.addEventListener('input', (e) => {
+      // 双方向スライダーと数値入力の同期
+      const id = e.target.id;
+      if (id.startsWith('range-')) {
+        const numId = id.replace('range-', '');
+        const targetInput = document.getElementById(numId) || document.getElementById('input-' + numId);
+        if (targetInput) targetInput.value = e.target.value;
+      } else if (e.target.classList.contains('num-input')) {
+        const rangeId = 'range-' + id.replace('input-', '');
+        const targetRange = document.getElementById(rangeId);
+        if (targetRange) targetRange.value = e.target.value;
+      }
+
+      // 取り崩しラジオ切り替え時の表示制御
+      if (e.target.name === 'withdraw-type') {
+        if (e.target.value === 'fixed-amount') {
+          document.getElementById('box-withdraw-amount').classList.remove('hidden');
+          document.getElementById('box-withdraw-rate').classList.add('hidden');
+        } else {
+          document.getElementById('box-withdraw-amount').classList.add('hidden');
+          document.getElementById('box-withdraw-rate').classList.remove('hidden');
+        }
+      }
+
+      updateSimulation();
+    });
   }
 
-  loadStateFromLocalStorage();
-  setupInputBindings();
-  ChartManager.initCharts();
-  updateSimulator();
+  // アコーディオン開閉
+  document.querySelectorAll('.acc-header').forEach(header => {
+    header.addEventListener('click', () => {
+      const box = header.closest('.account-box');
+      if (box) {
+        box.classList.toggle('collapsed');
+      }
+    });
+  });
+
+  // プリセットボタン
+  document.querySelectorAll('.btn-preset').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const presetKey = btn.dataset.preset;
+      if (PRESETS[presetKey]) {
+        document.querySelectorAll('.btn-preset').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        state = JSON.parse(JSON.stringify(PRESETS[presetKey]));
+        syncStateToUI();
+        updateSimulation();
+        showToast(`「${btn.querySelector('.preset-name').textContent}」シナリオを適用しました`, 'success');
+      }
+    });
+  });
+
+  // グラフ切り替えボタン
+  document.querySelectorAll('.btn-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.btn-toggle').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.chartType = btn.dataset.chart;
+      updateSimulation();
+    });
+  });
+
+  // JSONファイル保存
+  const btnSaveJson = document.getElementById('btn-save-json');
+  if (btnSaveJson) btnSaveJson.addEventListener('click', exportSettingsAsJSON);
+
+  // JSONファイル読込
+  const btnLoadJson = document.getElementById('btn-load-json');
+  const inputJson = document.getElementById('input-file-json');
+  if (btnLoadJson && inputJson) {
+    btnLoadJson.addEventListener('click', () => inputJson.click());
+    inputJson.addEventListener('change', importSettingsFromJSON);
+  }
+
+  // CSV出力
+  const btnExportCsv = document.getElementById('btn-export-csv');
+  const btnTableCsv = document.getElementById('btn-table-download-csv');
+  if (btnExportCsv) btnExportCsv.addEventListener('click', exportTableCSV);
+  if (btnTableCsv) btnTableCsv.addEventListener('click', exportTableCSV);
+
+  // テーマ切り替え
+  const btnTheme = document.getElementById('btn-theme-toggle');
+  if (btnTheme) {
+    btnTheme.addEventListener('click', () => {
+      const current = document.documentElement.getAttribute('data-theme') || 'dark';
+      const next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('wealth_sim_theme', next);
+      updateThemeIcon(next);
+      updateSimulation();
+    });
+  }
+
+  // 全初期化リセット
+  const btnReset = document.getElementById('btn-reset-all');
+  if (btnReset) {
+    btnReset.addEventListener('click', () => {
+      if (confirm('すべての入力設定を初期状態に戻しますか？')) {
+        state = JSON.parse(JSON.stringify(DEFAULT_STATE));
+        syncStateToUI();
+        updateSimulation();
+        showToast('設定を初期化しました', 'info');
+      }
+    });
+  }
+
+  // 詳細テーブル開閉
+  const btnToggleDetail = document.getElementById('btn-toggle-detail-table');
+  const boxDetail = document.getElementById('box-detail-table');
+  const iconDetail = document.getElementById('icon-detail-table');
+  if (btnToggleDetail && boxDetail) {
+    boxDetail.classList.add('collapsed'); // デフォルトは閉じておく
+    btnToggleDetail.addEventListener('click', () => {
+      boxDetail.classList.toggle('collapsed');
+      if (iconDetail) {
+        iconDetail.style.transform = boxDetail.classList.contains('collapsed') ? 'rotate(0deg)' : 'rotate(180deg)';
+      }
+    });
+  }
+
+  // Lucideアイコン初期化
+  if (window.lucide) {
+    window.lucide.createIcons();
+  }
 });
+
+function updateThemeIcon(theme) {
+  const iconLight = document.getElementById('icon-theme-light');
+  const iconDark = document.getElementById('icon-theme-dark');
+  if (iconLight && iconDark) {
+    if (theme === 'light') {
+      iconLight.classList.remove('hidden');
+      iconDark.classList.add('hidden');
+    } else {
+      iconLight.classList.add('hidden');
+      iconDark.classList.remove('hidden');
+    }
+  }
+}
