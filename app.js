@@ -8,29 +8,42 @@
 // ============================================================================
 const DEFAULT_STATE = {
   currentAge: 35,
+  endAge: 60, // 基本プロファイルに集約された積立終了年齢
   accounts: {
     taxable: {
-      initial: 100,      // 万円
-      monthly: 2.0,      // 万円/月
-      rate: 5.0,         // %/年
-      endAge: 60         // 歳まで積立
+      initial: 100, // 万円 (億円まで入力可能)
+      rate: 5.0,    // %/年
+      patterns: [
+        { years: 10, monthly: 2.0 },
+        { years: 10, monthly: 0.0 },
+        { years: 5,  monthly: 0.0 }
+      ]
     },
     oldNisa: {
-      initial: 200,      // 万円
+      baseYear: 2024,    // シミュレーション基準西暦年 (現在)
       rate: 5.0,         // %/年
-      transferAge: 40    // 歳時点で特定口座へ非課税移管
+      years: {
+        2018: 40,        // 2018年買付分 (2038年特定移管)
+        2019: 40,        // 2019年買付分 (2039年特定移管)
+        2020: 40,        // 2020年買付分 (2040年特定移管)
+        2021: 40,        // 2021年買付分 (2041年特定移管)
+        2022: 40,        // 2022年買付分 (2042年特定移管)
+        2023: 40         // 2023年買付分 (2043年特定移管)
+      }
     },
     newNisa: {
       initial: 300,      // 万円
-      monthly: 5.0,      // 万円/月
       rate: 5.0,         // %/年
-      endAge: 60         // 歳まで積立 (上限1,800万)
+      patterns: [
+        { years: 10, monthly: 5.0 },
+        { years: 10, monthly: 0.0 },
+        { years: 5,  monthly: 0.0 }
+      ]
     },
     dc: {
       initial: 150,      // 万円
       monthly: 2.3,      // 万円/月
       rate: 4.5,         // %/年
-      endAge: 60,        // 歳まで拠出
       receiveAge: 60,    // 歳で退職金受取
       yearsPast: 5       // これまでの拠出年数
     },
@@ -58,63 +71,47 @@ const DEFAULT_STATE = {
 // Application State Object (Cloned from Default)
 let state = JSON.parse(JSON.stringify(DEFAULT_STATE));
 
-// Presets
-const PRESETS = {
-  standard: {
-    currentAge: 35,
-    accounts: {
-      taxable: { initial: 100, monthly: 2.0, rate: 5.0, endAge: 60 },
-      oldNisa: { initial: 200, rate: 5.0, transferAge: 40 },
-      newNisa: { initial: 300, monthly: 5.0, rate: 5.0, endAge: 60 },
-      dc: { initial: 150, monthly: 2.3, rate: 4.5, endAge: 60, receiveAge: 60, yearsPast: 5 },
-      stock: { initial: 200, monthly: 0.0, rate: 4.0 }
-    },
-    pension: { startAge: 65, monthly: 15.0 },
-    withdraw: { startAge: 65, type: 'fixed-amount', monthly: 20.0, rate: 4.0 }
-  },
-  fire: {
-    currentAge: 30,
-    accounts: {
-      taxable: { initial: 300, monthly: 10.0, rate: 6.0, endAge: 50 },
-      oldNisa: { initial: 100, rate: 6.0, transferAge: 35 },
-      newNisa: { initial: 500, monthly: 15.0, rate: 6.0, endAge: 50 },
-      dc: { initial: 100, monthly: 5.5, rate: 5.0, endAge: 55, receiveAge: 60, yearsPast: 4 },
-      stock: { initial: 300, monthly: 2.0, rate: 5.0 }
-    },
-    pension: { startAge: 65, monthly: 12.0 },
-    withdraw: { startAge: 55, type: 'fixed-rate', monthly: 25.0, rate: 4.0 }
-  },
-  'stock-focused': {
-    currentAge: 40,
-    accounts: {
-      taxable: { initial: 200, monthly: 3.0, rate: 4.5, endAge: 65 },
-      oldNisa: { initial: 150, rate: 4.5, transferAge: 45 },
-      newNisa: { initial: 400, monthly: 8.0, rate: 5.0, endAge: 65 },
-      dc: { initial: 200, monthly: 2.0, rate: 4.0, endAge: 60, receiveAge: 65, yearsPast: 10 },
-      stock: { initial: 1000, monthly: 5.0, rate: 4.5 }
-    },
-    pension: { startAge: 65, monthly: 16.0 },
-    withdraw: { startAge: 65, type: 'fixed-amount', monthly: 18.0, rate: 3.5 }
-  },
-  senior: {
-    currentAge: 55,
-    accounts: {
-      taxable: { initial: 800, monthly: 5.0, rate: 3.5, endAge: 60 },
-      oldNisa: { initial: 400, rate: 4.0, transferAge: 58 },
-      newNisa: { initial: 600, monthly: 10.0, rate: 4.5, endAge: 65 },
-      dc: { initial: 800, monthly: 2.3, rate: 3.5, endAge: 60, receiveAge: 60, yearsPast: 20 },
-      stock: { initial: 500, monthly: 0.0, rate: 3.5 }
-    },
-    pension: { startAge: 65, monthly: 18.0 },
-    withdraw: { startAge: 60, type: 'fixed-amount', monthly: 22.0, rate: 4.0 }
-  }
-};
-
 // ============================================================================
 // Financial Calculations (現行退職所得控除 & シミュレーション)
 // ============================================================================
 const NISA_LIFETIME_LIMIT = 1800; // 万円
 const CAPITAL_GAINS_TAX = 0.20315; // 20.315% (特定口座運用益・譲渡益税)
+
+/**
+ * 3パターンの順次実質計算対象期間を算出
+ * @param {number} currentAge - 現在の年齢
+ * @param {number} endAge - 積立終了年齢
+ * @param {Array} patterns - [{ years: number, monthly: number }, ...]
+ * @returns {Array} - [{ reqYears, effYears, startAge, endAge, monthly, isCapped, isZero }, ...]
+ */
+function calcEffectivePatterns(currentAge, endAge, patterns) {
+  const result = [];
+  let cursorAge = currentAge;
+
+  (patterns || []).forEach((p, idx) => {
+    const reqYears = Math.max(0, parseInt(p.years, 10) || 0);
+    const monthly = Math.max(0, parseFloat(p.monthly) || 0);
+    const availYears = Math.max(0, endAge - cursorAge);
+    const effYears = Math.min(reqYears, availYears);
+    const startAge = cursorAge;
+    const patternEndAge = cursorAge + effYears;
+
+    result.push({
+      index: idx,
+      reqYears,
+      effYears,
+      startAge,
+      endAge: patternEndAge,
+      monthly,
+      isCapped: reqYears > effYears && effYears > 0,
+      isZero: effYears === 0
+    });
+
+    cursorAge += effYears;
+  });
+
+  return result;
+}
 
 /**
  * 現行の退職所得控除 & 退職所得課税計算
@@ -189,20 +186,36 @@ function calcRetirementTax(grossAmount, totalYears) {
 }
 
 /**
- * ライフサイクル資産シミュレーションエンジン
+ * ライフサイクル資産シミュレーションエンジン (順次計算対応)
  * @param {object} cfg - 現在のstate設定
  */
 function runSimulation(cfg) {
-  const currentAge = parseInt(cfg.currentAge, 10);
+  const currentAge = parseInt(cfg.currentAge, 10) || 0;
+  const globalEndAge = parseInt(cfg.endAge, 10) || 0;
   const endAge = 100;
-  const totalYears = endAge - currentAge;
+  const totalYears = Math.max(0, endAge - currentAge);
+
+  // 実効積立パターンを算出
+  const taxableEff = calcEffectivePatterns(currentAge, globalEndAge, cfg.accounts.taxable.patterns);
+  const newNisaEff = calcEffectivePatterns(currentAge, globalEndAge, cfg.accounts.newNisa.patterns);
 
   // 各口座の現在残高
   let balTaxable = parseFloat(cfg.accounts.taxable.initial) || 0;
   let bookTaxable = balTaxable; // 簿価 (元本)
 
-  let balOldNisa = parseFloat(cfg.accounts.oldNisa.initial) || 0;
-  let oldNisaTransferred = false;
+  // 旧NISA (2018〜2023年の各年度スロット管理)
+  const oldNisaYears = [2018, 2019, 2020, 2021, 2022, 2023];
+  const oldNisaBaseYear = parseInt(cfg.accounts.oldNisa.baseYear, 10) || 2024;
+  const oldNisaSlots = {};
+  let balOldNisa = 0;
+
+  oldNisaYears.forEach(yr => {
+    const val = (cfg.accounts.oldNisa.years && cfg.accounts.oldNisa.years[yr] !== undefined)
+      ? (parseFloat(cfg.accounts.oldNisa.years[yr]) || 0)
+      : 0;
+    oldNisaSlots[yr] = val;
+    balOldNisa += val;
+  });
 
   let balNewNisa = parseFloat(cfg.accounts.newNisa.initial) || 0;
   let bookNewNisa = Math.min(balNewNisa, NISA_LIFETIME_LIMIT); // 生涯枠カウント用簿価
@@ -223,34 +236,39 @@ function runSimulation(cfg) {
   records.push({
     age: currentAge,
     year: 0,
-    totalAssets: balTaxable + balOldNisa + balNewNisa + balDc + balStock,
-    taxable: balTaxable,
-    oldNisa: balOldNisa,
-    newNisa: balNewNisa,
-    dc: balDc,
-    stock: balStock,
+    calYear: oldNisaBaseYear,
+    totalAssets: Math.round((balTaxable + balOldNisa + balNewNisa + balDc + balStock) * 10) / 10,
+    taxable: Math.round(balTaxable * 10) / 10,
+    oldNisa: Math.round(balOldNisa * 10) / 10,
+    newNisa: Math.round(balNewNisa * 10) / 10,
+    dc: Math.round(balDc * 10) / 10,
+    stock: Math.round(balStock * 10) / 10,
     annualContribute: 0,
     annualGain: 0,
     annualPension: 0,
     dcTransfer: 0,
+    oldNisaTransfer: 0,
     annualWithdraw: 0,
     status: 'initial'
   });
 
   for (let y = 1; y <= totalYears; y++) {
     const age = currentAge + y;
+    const calYear = oldNisaBaseYear + y;
     let yearContributeTotal = 0;
     let yearGainTotal = 0;
     let dcTransferThisYear = 0;
+    let oldNisaTransferThisYear = 0;
 
     // -------------------------------------------------------------
     // 1. 各口座の積立・運用複利計算
     // -------------------------------------------------------------
 
-    // ① 特定口座
+    // ① 特定口座 (順次パターンの判定)
     let taxableMonthly = 0;
-    if (age <= cfg.accounts.taxable.endAge) {
-      taxableMonthly = parseFloat(cfg.accounts.taxable.monthly) || 0;
+    const activeTaxable = taxableEff.find(eff => eff.startAge < age && age <= eff.endAge);
+    if (activeTaxable) {
+      taxableMonthly = activeTaxable.monthly;
     }
     const taxableAnnualContribute = taxableMonthly * 12;
     const taxableRate = (parseFloat(cfg.accounts.taxable.rate) || 0) / 100;
@@ -260,29 +278,37 @@ function runSimulation(cfg) {
     yearContributeTotal += taxableAnnualContribute;
     yearGainTotal += taxableGain;
 
-    // ② 旧NISA口座
+    // ② 旧NISA口座 (各年度スロット運用 & 21年目順次特定口座移管)
     let oldNisaGain = 0;
-    if (!oldNisaTransferred && balOldNisa > 0) {
-      const oldNisaRate = (parseFloat(cfg.accounts.oldNisa.rate) || 0) / 100;
-      oldNisaGain = balOldNisa * oldNisaRate;
-      balOldNisa += oldNisaGain;
-      yearGainTotal += oldNisaGain;
+    const oldNisaRate = (parseFloat(cfg.accounts.oldNisa.rate) || 0) / 100;
 
-      // 指定移管年齢に到達した場合、非課税で特定口座へ全額移管
-      if (age >= cfg.accounts.oldNisa.transferAge) {
-        balTaxable += balOldNisa;
-        bookTaxable += balOldNisa; // 移管時時価が新たな特定口座の簿価となる
-        balOldNisa = 0;
-        oldNisaTransferred = true;
+    oldNisaYears.forEach(yr => {
+      if (oldNisaSlots[yr] > 0) {
+        // 運用利回り計算
+        const gain = oldNisaSlots[yr] * oldNisaRate;
+        oldNisaSlots[yr] += gain;
+        oldNisaGain += gain;
+
+        // 21年目に特定口座へ順次移管 (保有期限20年: 投資年 + 20年満了時)
+        const transferYear = yr + 20; // 例: 2018年分 → 2038年
+        if (calYear >= transferYear) {
+          const transferAmt = oldNisaSlots[yr];
+          balTaxable += transferAmt;
+          bookTaxable += transferAmt; // 移管時時価が新たな特定口座の簿価となる
+          oldNisaTransferThisYear += transferAmt;
+          oldNisaSlots[yr] = 0;
+        }
       }
-    }
+    });
+    balOldNisa = oldNisaYears.reduce((sum, yr) => sum + oldNisaSlots[yr], 0);
+    yearGainTotal += oldNisaGain;
 
-    // ③ 新NISA口座
+    // ③ 新NISA口座 (順次パターンの判定 & 生涯上限1,800万)
     let newNisaMonthly = 0;
-    if (age <= cfg.accounts.newNisa.endAge) {
-      newNisaMonthly = parseFloat(cfg.accounts.newNisa.monthly) || 0;
+    const activeNewNisa = newNisaEff.find(eff => eff.startAge < age && age <= eff.endAge);
+    if (activeNewNisa) {
+      newNisaMonthly = activeNewNisa.monthly;
     }
-    // 生涯投資枠1,800万円のチェック
     let newNisaAnnualContribute = newNisaMonthly * 12;
     if (bookNewNisa + newNisaAnnualContribute > NISA_LIFETIME_LIMIT) {
       newNisaAnnualContribute = Math.max(0, NISA_LIFETIME_LIMIT - bookNewNisa);
@@ -297,7 +323,7 @@ function runSimulation(cfg) {
     // ④ 確定拠出年金 (DC/iDeCo)
     let dcMonthly = 0;
     if (!dcReceived) {
-      if (age <= cfg.accounts.dc.endAge) {
+      if (age <= globalEndAge) {
         dcMonthly = parseFloat(cfg.accounts.dc.monthly) || 0;
       }
       const dcAnnualContribute = dcMonthly * 12;
@@ -308,7 +334,7 @@ function runSimulation(cfg) {
       yearGainTotal += dcGain;
 
       // 退職金受取年齢に到達した場合
-      if (age >= cfg.accounts.dc.receiveAge) {
+      if (age >= cfg.accounts.dc.receiveAge && cfg.accounts.dc.receiveAge > 0) {
         const totalDcYears = dcYearsPast + (age - currentAge);
         const taxResult = calcRetirementTax(balDc, totalDcYears);
         dcNetTransferred = taxResult.netAmount;
@@ -324,7 +350,10 @@ function runSimulation(cfg) {
     }
 
     // ⑤ 株式現物口座
-    const stockMonthly = parseFloat(cfg.accounts.stock.monthly) || 0;
+    let stockMonthly = 0;
+    if (age <= globalEndAge) {
+      stockMonthly = parseFloat(cfg.accounts.stock.monthly) || 0;
+    }
     const stockAnnualContribute = stockMonthly * 12;
     const stockRate = (parseFloat(cfg.accounts.stock.rate) || 0) / 100;
     const stockGain = (balStock + stockAnnualContribute * 0.5) * stockRate;
@@ -336,7 +365,7 @@ function runSimulation(cfg) {
     // 2. 年金受給 (公的年金)
     // -------------------------------------------------------------
     let annualPension = 0;
-    if (age >= cfg.pension.startAge) {
+    if (age >= cfg.pension.startAge && cfg.pension.startAge > 0) {
       annualPension = (parseFloat(cfg.pension.monthly) || 0) * 12;
     }
 
@@ -346,11 +375,11 @@ function runSimulation(cfg) {
     let annualWithdrawTarget = 0;
     let actualWithdraw = 0;
 
-    if (age >= cfg.withdraw.startAge) {
+    if (age >= cfg.withdraw.startAge && cfg.withdraw.startAge > 0) {
       if (cfg.withdraw.type === 'fixed-amount') {
         annualWithdrawTarget = (parseFloat(cfg.withdraw.monthly) || 0) * 12;
       } else {
-        // 定率取り崩し (対象3口座の前年末/運用後残高合計に対する割合)
+        // 定率取り崩し (対象3口座の運用後残高合計に対する割合)
         const withdrawableTotal = balTaxable + balOldNisa + balNewNisa;
         const withdrawRate = (parseFloat(cfg.withdraw.rate) || 0) / 100;
         annualWithdrawTarget = withdrawableTotal * withdrawRate;
@@ -366,10 +395,18 @@ function runSimulation(cfg) {
         actualWithdraw += drawTaxable;
       }
 
-      // 優先順位2位: 旧NISAから取り崩し (移管前の残高がある場合)
+      // 優先順位2位: 旧NISAから取り崩し (移管前の残高がある場合、古い年度から順に取り崩す)
       if (remainingToWithdraw > 0 && balOldNisa > 0) {
         const drawOldNisa = Math.min(balOldNisa, remainingToWithdraw);
-        balOldNisa -= drawOldNisa;
+        let remDraw = drawOldNisa;
+        for (const yr of oldNisaYears) {
+          if (oldNisaSlots[yr] > 0 && remDraw > 0) {
+            const d = Math.min(oldNisaSlots[yr], remDraw);
+            oldNisaSlots[yr] -= d;
+            remDraw -= d;
+          }
+        }
+        balOldNisa = oldNisaYears.reduce((sum, yr) => sum + oldNisaSlots[yr], 0);
         remainingToWithdraw -= drawOldNisa;
         actualWithdraw += drawOldNisa;
       }
@@ -390,6 +427,7 @@ function runSimulation(cfg) {
     records.push({
       age,
       year: y,
+      calYear,
       totalAssets: Math.round(totalAssets * 10) / 10,
       taxable: Math.round(balTaxable * 10) / 10,
       oldNisa: Math.round(balOldNisa * 10) / 10,
@@ -400,13 +438,14 @@ function runSimulation(cfg) {
       annualGain: Math.round(yearGainTotal * 10) / 10,
       annualPension: Math.round(annualPension * 10) / 10,
       dcTransfer: Math.round(dcTransferThisYear * 10) / 10,
+      oldNisaTransfer: Math.round(oldNisaTransferThisYear * 10) / 10,
       annualWithdraw: Math.round(actualWithdraw * 10) / 10,
       targetWithdraw: Math.round(annualWithdrawTarget * 10) / 10
     });
   }
 
   // サマリー計算
-  let peakAssetRecord = records[0];
+  let peakAssetRecord = records[0] || { totalAssets: 0, age: currentAge };
   let totalPensionReceived = 0;
   for (const r of records) {
     if (r.totalAssets > peakAssetRecord.totalAssets) {
@@ -415,7 +454,7 @@ function runSimulation(cfg) {
     totalPensionReceived += r.annualPension;
   }
 
-  const record100 = records[records.length - 1];
+  const record100 = records[records.length - 1] || { totalAssets: 0, taxable: 0, stock: 0 };
 
   return {
     records,
@@ -439,6 +478,81 @@ function runSimulation(cfg) {
 let mainChartInstance = null;
 
 /**
+ * 実質計算対象期間バッジの更新
+ */
+function updateEffectivePatternBadges() {
+  const currentAge = parseInt(state.currentAge, 10) || 0;
+  const endAge = parseInt(state.endAge, 10) || 0;
+
+  // 特定口座
+  const taxableEff = calcEffectivePatterns(currentAge, endAge, state.accounts.taxable.patterns);
+  taxableEff.forEach((eff, idx) => {
+    const el = document.getElementById(`taxable-p${idx + 1}-effective`);
+    if (!el) return;
+    if (eff.effYears === 0) {
+      el.textContent = '実質 0年 (対象外)';
+      el.className = 'pattern-effective-badge badge-zero';
+    } else if (eff.isCapped) {
+      el.textContent = `実質 ${eff.effYears}年 (${eff.startAge}〜${eff.endAge}歳 ※短縮)`;
+      el.className = 'pattern-effective-badge badge-capped';
+    } else {
+      el.textContent = `実質 ${eff.effYears}年 (${eff.startAge}〜${eff.endAge}歳)`;
+      el.className = 'pattern-effective-badge';
+    }
+  });
+
+  // 新NISA口座
+  const newNisaEff = calcEffectivePatterns(currentAge, endAge, state.accounts.newNisa.patterns);
+  newNisaEff.forEach((eff, idx) => {
+    const el = document.getElementById(`newnisa-p${idx + 1}-effective`);
+    if (!el) return;
+    if (eff.effYears === 0) {
+      el.textContent = '実質 0年 (対象外)';
+      el.className = 'pattern-effective-badge badge-zero';
+    } else if (eff.isCapped) {
+      el.textContent = `実質 ${eff.effYears}年 (${eff.startAge}〜${eff.endAge}歳 ※短縮)`;
+      el.className = 'pattern-effective-badge badge-capped';
+    } else {
+      el.textContent = `実質 ${eff.effYears}年 (${eff.startAge}〜${eff.endAge}歳)`;
+      el.className = 'pattern-effective-badge';
+    }
+  });
+}
+
+/**
+ * 旧NISA合計バッジおよび年度別移管年齢バッジの更新
+ */
+function updateOldNisaUIBadges() {
+  let oldNisaTotal = 0;
+  const oldNisaBaseYear = parseInt(state.accounts.oldNisa.baseYear, 10) || 2024;
+  const currentAge = parseInt(state.currentAge, 10) || 35;
+  const yearsObj = state.accounts.oldNisa.years || {};
+
+  [2018, 2019, 2020, 2021, 2022, 2023].forEach(yr => {
+    const val = yearsObj[yr] !== undefined ? yearsObj[yr] : 0;
+    oldNisaTotal += parseFloat(val) || 0;
+
+    const transYear = yr + 20; // 21年目移管（投資年 + 20年満了時）
+    const transAge = currentAge + (transYear - oldNisaBaseYear);
+    const badge = document.getElementById(`badge-oldnisa-trans-${yr}`);
+    if (badge) {
+      if (transYear <= oldNisaBaseYear) {
+        badge.textContent = `${transYear}年 (移管済)`;
+        badge.className = 'oldnisa-transfer-badge badge-capped';
+      } else {
+        badge.textContent = `${transYear}年移管 (${transAge}歳)`;
+        badge.className = 'oldnisa-transfer-badge';
+      }
+    }
+  });
+
+  setText('disp-oldnisa-total', formatMoneyBadge(oldNisaTotal));
+  setText('disp-oldnisa-rate', state.accounts.oldNisa.rate);
+  setText('disp-oldnisa-base-year', state.accounts.oldNisa.baseYear);
+  setText('sum-oldnisa', `合計 ${formatMoneyBadge(oldNisaTotal)}万 (2018〜2023年)`);
+}
+
+/**
  * フォーム要素とStateのバインディング
  */
 function syncStateToUI() {
@@ -447,65 +561,77 @@ function syncStateToUI() {
   setInputValue('input-current-age', state.currentAge);
   setText('disp-current-age', state.currentAge);
 
+  setInputValue('range-end-age', state.endAge);
+  setInputValue('input-end-age', state.endAge);
+  setText('disp-end-age', state.endAge);
+
   // ① 特定口座
   setInputValue('range-taxable-initial', state.accounts.taxable.initial);
   setInputValue('taxable-initial', state.accounts.taxable.initial);
-  setText('disp-taxable-initial', state.accounts.taxable.initial);
-  setInputValue('taxable-monthly', state.accounts.taxable.monthly);
-  setText('disp-taxable-monthly', state.accounts.taxable.monthly);
+  setText('disp-taxable-initial', formatMoneyBadge(state.accounts.taxable.initial));
   setInputValue('taxable-rate', state.accounts.taxable.rate);
   setText('disp-taxable-rate', state.accounts.taxable.rate);
-  setInputValue('taxable-end-age', state.accounts.taxable.endAge);
-  setText('disp-taxable-end-age', state.accounts.taxable.endAge);
-  setText('sum-taxable', `初期 ${state.accounts.taxable.initial}万 / 積立 ${state.accounts.taxable.monthly}万`);
+
+  // 特定口座 3パターン (期間・金額)
+  const tPatterns = state.accounts.taxable.patterns || [];
+  ['p1', 'p2', 'p3'].forEach((pKey, idx) => {
+    const p = tPatterns[idx] || { years: 0, monthly: 0 };
+    setInputValue(`taxable-${pKey}-years`, p.years);
+    setInputValue(`taxable-${pKey}-monthly`, p.monthly);
+  });
+  setText('sum-taxable', `初期 ${formatMoneyBadge(state.accounts.taxable.initial)}万`);
 
   // ② 旧NISA
-  setInputValue('range-oldnisa-initial', state.accounts.oldNisa.initial);
-  setInputValue('oldnisa-initial', state.accounts.oldNisa.initial);
-  setText('disp-oldnisa-initial', state.accounts.oldNisa.initial);
   setInputValue('oldnisa-rate', state.accounts.oldNisa.rate);
-  setText('disp-oldnisa-rate', state.accounts.oldNisa.rate);
-  setInputValue('oldnisa-transfer-age', state.accounts.oldNisa.transferAge);
-  setText('disp-oldnisa-transfer-age', state.accounts.oldNisa.transferAge);
-  setText('sum-oldnisa', `初期 ${state.accounts.oldNisa.initial}万 / ${state.accounts.oldNisa.transferAge}歳移管`);
+  setInputValue('oldnisa-base-year', state.accounts.oldNisa.baseYear);
+
+  const yearsObj = state.accounts.oldNisa.years || {};
+  [2018, 2019, 2020, 2021, 2022, 2023].forEach(yr => {
+    const val = yearsObj[yr] !== undefined ? yearsObj[yr] : 0;
+    setInputValue(`oldnisa-val-${yr}`, val);
+  });
+
+  updateOldNisaUIBadges();
 
   // ③ 新NISA
   setInputValue('range-newnisa-initial', state.accounts.newNisa.initial);
   setInputValue('newnisa-initial', state.accounts.newNisa.initial);
-  setText('disp-newnisa-initial', state.accounts.newNisa.initial);
-  setInputValue('newnisa-monthly', state.accounts.newNisa.monthly);
-  setText('disp-newnisa-monthly', state.accounts.newNisa.monthly);
+  setText('disp-newnisa-initial', formatMoneyBadge(state.accounts.newNisa.initial));
   setInputValue('newnisa-rate', state.accounts.newNisa.rate);
   setText('disp-newnisa-rate', state.accounts.newNisa.rate);
-  setInputValue('newnisa-end-age', state.accounts.newNisa.endAge);
-  setText('disp-newnisa-end-age', state.accounts.newNisa.endAge);
-  setText('sum-newnisa', `初期 ${state.accounts.newNisa.initial}万 / 積立 ${state.accounts.newNisa.monthly}万`);
+
+  // 新NISA 3パターン (期間・金額)
+  const nPatterns = state.accounts.newNisa.patterns || [];
+  ['p1', 'p2', 'p3'].forEach((pKey, idx) => {
+    const p = nPatterns[idx] || { years: 0, monthly: 0 };
+    setInputValue(`newnisa-${pKey}-years`, p.years);
+    setInputValue(`newnisa-${pKey}-monthly`, p.monthly);
+  });
+  setText('sum-newnisa', `初期 ${formatMoneyBadge(state.accounts.newNisa.initial)}万`);
 
   // ④ DC
   setInputValue('range-dc-initial', state.accounts.dc.initial);
   setInputValue('dc-initial', state.accounts.dc.initial);
-  setText('disp-dc-initial', state.accounts.dc.initial);
+  setText('disp-dc-initial', formatMoneyBadge(state.accounts.dc.initial));
   setInputValue('dc-monthly', state.accounts.dc.monthly);
   setText('disp-dc-monthly', state.accounts.dc.monthly);
   setInputValue('dc-rate', state.accounts.dc.rate);
   setText('disp-dc-rate', state.accounts.dc.rate);
-  setInputValue('dc-end-age', state.accounts.dc.endAge);
-  setText('disp-dc-end-age', state.accounts.dc.endAge);
   setInputValue('dc-receive-age', state.accounts.dc.receiveAge);
   setText('disp-dc-receive-age', state.accounts.dc.receiveAge);
   setInputValue('dc-years-past', state.accounts.dc.yearsPast);
   setText('disp-dc-years-past', state.accounts.dc.yearsPast);
-  setText('sum-dc', `初期 ${state.accounts.dc.initial}万 / 拠出 ${state.accounts.dc.monthly}万`);
+  setText('sum-dc', `初期 ${formatMoneyBadge(state.accounts.dc.initial)}万 / 拠出 ${state.accounts.dc.monthly}万`);
 
   // ⑤ 株式現物
   setInputValue('range-stock-initial', state.accounts.stock.initial);
   setInputValue('stock-initial', state.accounts.stock.initial);
-  setText('disp-stock-initial', state.accounts.stock.initial);
+  setText('disp-stock-initial', formatMoneyBadge(state.accounts.stock.initial));
   setInputValue('stock-monthly', state.accounts.stock.monthly);
   setText('disp-stock-monthly', state.accounts.stock.monthly);
   setInputValue('stock-rate', state.accounts.stock.rate);
   setText('disp-stock-rate', state.accounts.stock.rate);
-  setText('sum-stock', `初期 ${state.accounts.stock.initial}万 / 買増 ${state.accounts.stock.monthly}万`);
+  setText('sum-stock', `初期 ${formatMoneyBadge(state.accounts.stock.initial)}万 / 買増 ${state.accounts.stock.monthly}万`);
 
   // 公的年金
   setInputValue('pension-start-age', state.pension.startAge);
@@ -523,11 +649,15 @@ function syncStateToUI() {
   if (radioType) radioType.checked = true;
 
   if (state.withdraw.type === 'fixed-amount') {
-    document.getElementById('box-withdraw-amount').classList.remove('hidden');
-    document.getElementById('box-withdraw-rate').classList.add('hidden');
+    const boxAmount = document.getElementById('box-withdraw-amount');
+    const boxRate = document.getElementById('box-withdraw-rate');
+    if (boxAmount) boxAmount.classList.remove('hidden');
+    if (boxRate) boxRate.classList.add('hidden');
   } else {
-    document.getElementById('box-withdraw-amount').classList.add('hidden');
-    document.getElementById('box-withdraw-rate').classList.remove('hidden');
+    const boxAmount = document.getElementById('box-withdraw-amount');
+    const boxRate = document.getElementById('box-withdraw-rate');
+    if (boxAmount) boxAmount.classList.add('hidden');
+    if (boxRate) boxRate.classList.remove('hidden');
   }
 
   setInputValue('range-withdraw-monthly', state.withdraw.monthly);
@@ -544,12 +674,15 @@ function syncStateToUI() {
   const fillPct = Math.min(100, Math.round((nisaInitial / NISA_LIFETIME_LIMIT) * 100));
   const elFill = document.getElementById('nisa-limit-fill');
   if (elFill) elFill.style.width = `${fillPct}%`;
-  setText('nisa-limit-fill-info', `${nisaInitial}万 / 1,800万 (${fillPct}%)`);
+  setText('nisa-limit-fill-info', `${formatMoneyBadge(nisaInitial)}万 / 1,800万 (${fillPct}%)`);
+
+  // 実質計算期間バッジ更新
+  updateEffectivePatternBadges();
 }
 
 function setInputValue(id, val) {
   const el = document.getElementById(id);
-  if (el) el.value = val;
+  if (el) el.value = (val !== undefined && val !== null) ? val : 0;
 }
 
 function setText(id, text) {
@@ -561,42 +694,90 @@ function setText(id, text) {
  * UIからStateを読み取って更新
  */
 function readStateFromUI() {
-  state.currentAge = parseInt(document.getElementById('input-current-age').value, 10) || 35;
+  const parseNum = (id, def = 0) => {
+    const el = document.getElementById(id);
+    if (!el) return def;
+    const v = parseFloat(el.value);
+    return isNaN(v) ? def : v;
+  };
 
-  state.accounts.taxable.initial = parseFloat(document.getElementById('taxable-initial').value) || 0;
-  state.accounts.taxable.monthly = parseFloat(document.getElementById('taxable-monthly').value) || 0;
-  state.accounts.taxable.rate = parseFloat(document.getElementById('taxable-rate').value) || 0;
-  state.accounts.taxable.endAge = parseInt(document.getElementById('taxable-end-age').value, 10) || 60;
+  const parseIntNum = (id, def = 0) => {
+    const el = document.getElementById(id);
+    if (!el) return def;
+    const v = parseInt(el.value, 10);
+    return isNaN(v) ? def : v;
+  };
 
-  state.accounts.oldNisa.initial = parseFloat(document.getElementById('oldnisa-initial').value) || 0;
-  state.accounts.oldNisa.rate = parseFloat(document.getElementById('oldnisa-rate').value) || 0;
-  state.accounts.oldNisa.transferAge = parseInt(document.getElementById('oldnisa-transfer-age').value, 10) || 40;
+  state.currentAge = parseIntNum('input-current-age', 35);
+  state.endAge = parseIntNum('input-end-age', 60);
 
-  state.accounts.newNisa.initial = parseFloat(document.getElementById('newnisa-initial').value) || 0;
-  state.accounts.newNisa.monthly = parseFloat(document.getElementById('newnisa-monthly').value) || 0;
-  state.accounts.newNisa.rate = parseFloat(document.getElementById('newnisa-rate').value) || 0;
-  state.accounts.newNisa.endAge = parseInt(document.getElementById('newnisa-end-age').value, 10) || 60;
+  // ① 特定口座
+  state.accounts.taxable.initial = parseNum('taxable-initial', 0);
+  state.accounts.taxable.rate = parseNum('taxable-rate', 0);
+  state.accounts.taxable.patterns = [
+    {
+      years: parseIntNum('taxable-p1-years', 0),
+      monthly: parseNum('taxable-p1-monthly', 0)
+    },
+    {
+      years: parseIntNum('taxable-p2-years', 0),
+      monthly: parseNum('taxable-p2-monthly', 0)
+    },
+    {
+      years: parseIntNum('taxable-p3-years', 0),
+      monthly: parseNum('taxable-p3-monthly', 0)
+    }
+  ];
 
-  state.accounts.dc.initial = parseFloat(document.getElementById('dc-initial').value) || 0;
-  state.accounts.dc.monthly = parseFloat(document.getElementById('dc-monthly').value) || 0;
-  state.accounts.dc.rate = parseFloat(document.getElementById('dc-rate').value) || 0;
-  state.accounts.dc.endAge = parseInt(document.getElementById('dc-end-age').value, 10) || 60;
-  state.accounts.dc.receiveAge = parseInt(document.getElementById('dc-receive-age').value, 10) || 60;
-  state.accounts.dc.yearsPast = parseFloat(document.getElementById('dc-years-past').value) || 0;
+  // ② 旧NISA
+  state.accounts.oldNisa.rate = parseNum('oldnisa-rate', 5.0);
+  state.accounts.oldNisa.baseYear = parseIntNum('oldnisa-base-year', 2024);
+  if (!state.accounts.oldNisa.years) state.accounts.oldNisa.years = {};
+  [2018, 2019, 2020, 2021, 2022, 2023].forEach(yr => {
+    state.accounts.oldNisa.years[yr] = parseNum(`oldnisa-val-${yr}`, 0);
+  });
 
-  state.accounts.stock.initial = parseFloat(document.getElementById('stock-initial').value) || 0;
-  state.accounts.stock.monthly = parseFloat(document.getElementById('stock-monthly').value) || 0;
-  state.accounts.stock.rate = parseFloat(document.getElementById('stock-rate').value) || 0;
+  // ③ 新NISA
+  state.accounts.newNisa.initial = parseNum('newnisa-initial', 0);
+  state.accounts.newNisa.rate = parseNum('newnisa-rate', 0);
+  state.accounts.newNisa.patterns = [
+    {
+      years: parseIntNum('newnisa-p1-years', 0),
+      monthly: parseNum('newnisa-p1-monthly', 0)
+    },
+    {
+      years: parseIntNum('newnisa-p2-years', 0),
+      monthly: parseNum('newnisa-p2-monthly', 0)
+    },
+    {
+      years: parseIntNum('newnisa-p3-years', 0),
+      monthly: parseNum('newnisa-p3-monthly', 0)
+    }
+  ];
 
-  state.pension.startAge = parseInt(document.getElementById('pension-start-age').value, 10) || 65;
-  state.pension.monthly = parseFloat(document.getElementById('pension-monthly').value) || 0;
+  // ④ DC
+  state.accounts.dc.initial = parseNum('dc-initial', 0);
+  state.accounts.dc.monthly = parseNum('dc-monthly', 0);
+  state.accounts.dc.rate = parseNum('dc-rate', 0);
+  state.accounts.dc.receiveAge = parseIntNum('dc-receive-age', 60);
+  state.accounts.dc.yearsPast = parseNum('dc-years-past', 0);
 
-  state.withdraw.startAge = parseInt(document.getElementById('withdraw-start-age').value, 10) || 65;
+  // ⑤ 株式現物
+  state.accounts.stock.initial = parseNum('stock-initial', 0);
+  state.accounts.stock.monthly = parseNum('stock-monthly', 0);
+  state.accounts.stock.rate = parseNum('stock-rate', 0);
+
+  // 公的年金
+  state.pension.startAge = parseIntNum('pension-start-age', 65);
+  state.pension.monthly = parseNum('pension-monthly', 0);
+
+  // 取り崩し
+  state.withdraw.startAge = parseIntNum('withdraw-start-age', 65);
   const checkedRadio = document.querySelector('input[name="withdraw-type"]:checked');
   if (checkedRadio) state.withdraw.type = checkedRadio.value;
 
-  state.withdraw.monthly = parseFloat(document.getElementById('withdraw-monthly').value) || 0;
-  state.withdraw.rate = parseFloat(document.getElementById('withdraw-rate').value) || 0;
+  state.withdraw.monthly = parseNum('withdraw-monthly', 0);
+  state.withdraw.rate = parseNum('withdraw-rate', 0);
 
   // LocalStorageに保存
   saveStateToLocalStorage();
@@ -609,6 +790,12 @@ function updateSimulation() {
   readStateFromUI();
   const sim = runSimulation(state);
 
+  // 実質計算期間バッジ更新
+  updateEffectivePatternBadges();
+
+  // 旧NISAバッジ・合計値更新
+  updateOldNisaUIBadges();
+
   // 1. KPI更新
   setText('kpi-peak-assets', formatNumber(sim.summary.peakAssets));
   setText('kpi-peak-age', `${sim.summary.peakAge} 歳到達時`);
@@ -620,8 +807,7 @@ function updateSimulation() {
   setText('kpi-pension-span', `${state.pension.startAge}歳〜100歳 (月${state.pension.monthly}万)`);
 
   // DCプレビューボックス更新
-  const dcReceiveRecord = sim.records.find(r => r.age === state.accounts.dc.receiveAge);
-  if (dcReceiveRecord && sim.summary.dcNet > 0) {
+  if (state.accounts.dc.receiveAge > 0 && sim.summary.dcNet > 0) {
     const grossDc = sim.summary.dcNet + sim.summary.dcTax;
     const totalDcYears = state.accounts.dc.yearsPast + (state.accounts.dc.receiveAge - state.currentAge);
     const taxInfo = calcRetirementTax(grossDc, totalDcYears);
@@ -660,6 +846,8 @@ function renderMilestones(records) {
 
   container.innerHTML = '';
   tableBody.innerHTML = '';
+
+  if (!records || records.length === 0) return;
 
   targetAges.forEach(targetAge => {
     // レコード取得 (存在しない場合は最終または最寄りのレコード)
@@ -736,26 +924,36 @@ function renderDetailTable(records) {
   if (!tableBody) return;
 
   tableBody.innerHTML = '';
+  if (!records || records.length === 0) return;
 
-  records.forEach(rec => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td><strong>${rec.age} 歳</strong></td>
-      <td>${rec.year}年目</td>
-      <td><strong>${formatNumber(rec.totalAssets)} 万</strong></td>
-      <td>${rec.annualContribute > 0 ? '+' + formatNumber(rec.annualContribute) + ' 万' : '-'}</td>
-      <td style="color: ${rec.annualGain >= 0 ? 'var(--col-success)' : 'var(--col-danger)'};">${rec.annualGain >= 0 ? '+' : ''}${formatNumber(rec.annualGain)} 万</td>
-      <td>${rec.annualPension > 0 ? formatNumber(rec.annualPension) + ' 万' : '-'}</td>
-      <td style="color: var(--col-dc);">${rec.dcTransfer > 0 ? '+' + formatNumber(rec.dcTransfer) + ' 万 (移管)' : '-'}</td>
-      <td style="color: var(--col-taxable);">${formatNumber(rec.taxable)} 万</td>
-      <td style="color: var(--col-oldnisa);">${formatNumber(rec.oldNisa)} 万</td>
-      <td style="color: var(--col-newnisa);">${formatNumber(rec.newNisa)} 万</td>
-      <td style="color: var(--col-dc);">${formatNumber(rec.dc)} 万</td>
-      <td style="color: var(--col-stock);">${formatNumber(rec.stock)} 万</td>
-      <td style="color: ${rec.annualWithdraw > 0 ? 'var(--col-danger)' : 'inherit'};">${rec.annualWithdraw > 0 ? '-' + formatNumber(rec.annualWithdraw) + ' 万' : '-'}</td>
-    `;
-    tableBody.appendChild(tr);
-  });
+    records.forEach(rec => {
+      let transferText = '-';
+      if (rec.dcTransfer > 0 && rec.oldNisaTransfer > 0) {
+        transferText = `+${formatNumber(rec.dcTransfer)}万(DC) / +${formatNumber(rec.oldNisaTransfer)}万(旧NISA)`;
+      } else if (rec.dcTransfer > 0) {
+        transferText = `+${formatNumber(rec.dcTransfer)}万 (DC移管)`;
+      } else if (rec.oldNisaTransfer > 0) {
+        transferText = `+${formatNumber(rec.oldNisaTransfer)}万 (旧NISA移管)`;
+      }
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><strong>${rec.age} 歳</strong></td>
+        <td>${rec.year}年目</td>
+        <td><strong>${formatNumber(rec.totalAssets)} 万</strong></td>
+        <td>${rec.annualContribute > 0 ? '+' + formatNumber(rec.annualContribute) + ' 万' : '-'}</td>
+        <td style="color: ${rec.annualGain >= 0 ? 'var(--col-success)' : 'var(--col-danger)'};">${rec.annualGain >= 0 ? '+' : ''}${formatNumber(rec.annualGain)} 万</td>
+        <td>${rec.annualPension > 0 ? formatNumber(rec.annualPension) + ' 万' : '-'}</td>
+        <td style="color: ${rec.oldNisaTransfer > 0 ? 'var(--col-oldnisa)' : 'var(--col-dc)'}; font-size: 0.73rem;">${transferText}</td>
+        <td style="color: var(--col-taxable);">${formatNumber(rec.taxable)} 万</td>
+        <td style="color: var(--col-oldnisa);">${formatNumber(rec.oldNisa)} 万</td>
+        <td style="color: var(--col-newnisa);">${formatNumber(rec.newNisa)} 万</td>
+        <td style="color: var(--col-dc);">${formatNumber(rec.dc)} 万</td>
+        <td style="color: var(--col-stock);">${formatNumber(rec.stock)} 万</td>
+        <td style="color: ${rec.annualWithdraw > 0 ? 'var(--col-danger)' : 'inherit'};">${rec.annualWithdraw > 0 ? '-' + formatNumber(rec.annualWithdraw) + ' 万' : '-'}</td>
+      `;
+      tableBody.appendChild(tr);
+    });
 
   setText('badge-table-rows', `${state.currentAge}歳〜100歳 (${records.length}行)`);
 }
@@ -766,6 +964,11 @@ function renderDetailTable(records) {
 function renderChart(records) {
   const ctx = document.getElementById('mainChart');
   if (!ctx) return;
+
+  if (!records || records.length === 0) {
+    if (mainChartInstance) mainChartInstance.destroy();
+    return;
+  }
 
   const labels = records.map(r => `${r.age}歳`);
 
@@ -1004,29 +1207,74 @@ function renderChart(records) {
 // ============================================================================
 
 /**
- * 設定をJSONファイルとして保存 (ダウンロード)
+ * 現在日時のタイムスタンプ文字列を取得 (YYYYMMDD_HHmmss)
  */
-function exportSettingsAsJSON() {
+function getTimestampString() {
+  const now = new Date();
+  const YYYY = now.getFullYear();
+  const MM = String(now.getMonth() + 1).padStart(2, '0');
+  const DD = String(now.getDate()).padStart(2, '0');
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  const ss = String(now.getSeconds()).padStart(2, '0');
+  return `${YYYY}${MM}${DD}_${hh}${mm}${ss}`;
+}
+
+/**
+ * 設定をJSONファイルとして保存 (保存先指定 & 時分秒付きファイル名)
+ */
+async function exportSettingsAsJSON() {
   readStateFromUI();
   const exportData = {
     appName: 'WealthBuildingSimulatorPro',
-    version: '2.0.0',
+    version: '2.2.0',
     exportedAt: new Date().toISOString(),
     config: state
   };
 
   const jsonString = JSON.stringify(exportData, null, 2);
+  const defaultFilename = `wealth_simulation_config_${getTimestampString()}.json`;
+
+  // 1. File System Access API (保存先ダイアログ) のサポート判定
+  if (typeof window.showSaveFilePicker === 'function') {
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: defaultFilename,
+        types: [
+          {
+            description: 'JSON Files (*.json)',
+            accept: {
+              'application/json': ['.json']
+            }
+          }
+        ]
+      });
+      const writable = await handle.createWritable();
+      await writable.write(jsonString);
+      await writable.close();
+      showToast('指定した場所に設定ファイルを保存しました', 'success');
+      return;
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        // ユーザーが保存ダイアログをキャンセルした場合
+        return;
+      }
+      console.warn('showSaveFilePicker failed, falling back to standard download:', err);
+    }
+  }
+
+  // 2. フォールバック: 通常のダウンロード処理
   const blob = new Blob([jsonString], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `wealth_simulation_config_${new Date().toISOString().slice(0, 10)}.json`;
+  a.download = defaultFilename;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 
-  showToast('設定をJSONファイルとして保存しました', 'success');
+  showToast('設定をJSONファイルとしてダウンロード保存しました', 'success');
 }
 
 /**
@@ -1041,11 +1289,11 @@ function importSettingsFromJSON(e) {
     try {
       const parsed = JSON.parse(evt.target.result);
       const config = parsed.config || parsed;
-      if (!config.accounts || !config.currentAge) {
+      if (!config.accounts) {
         throw new Error('有効なシミュレーター設定ファイルではありません');
       }
 
-      state = Object.assign({}, DEFAULT_STATE, config);
+      state = normalizeState(config);
       syncStateToUI();
       updateSimulation();
       showToast('設定ファイルを正常に読み込みました', 'success');
@@ -1058,27 +1306,117 @@ function importSettingsFromJSON(e) {
 }
 
 /**
- * CSVエクスポート
+ * CSVエクスポート (保存先指定 & 時分秒付きファイル名)
  */
-function exportTableCSV() {
+async function exportTableCSV() {
   const sim = runSimulation(state);
-  let csv = '年齢,経過年,総資産額(万円),年間積立(万円),年間運用益(万円),公的年金(万円),DC受取移管(万円),特定口座(万円),旧NISA(万円),新NISA(万円),確定拠出年金(万円),株式現物(万円),年間取崩し(万円)\n';
+  let csv = '年齢,経過年,総資産額(万円),年間積立(万円),年間運用益(万円),公的年金(万円),DC受取移管(万円),旧NISA移管(万円),特定口座(万円),旧NISA(万円),新NISA(万円),確定拠出年金(万円),株式現物(万円),年間取崩し(万円)\n';
 
   sim.records.forEach(r => {
-    csv += `${r.age},${r.year},${r.totalAssets},${r.annualContribute},${r.annualGain},${r.annualPension},${r.dcTransfer},${r.taxable},${r.oldNisa},${r.newNisa},${r.dc},${r.stock},${r.annualWithdraw}\n`;
+    csv += `${r.age},${r.year},${r.totalAssets},${r.annualContribute},${r.annualGain},${r.annualPension},${r.dcTransfer},${r.oldNisaTransfer},${r.taxable},${r.oldNisa},${r.newNisa},${r.dc},${r.stock},${r.annualWithdraw}\n`;
   });
 
+  const defaultFilename = `wealth_simulation_data_${getTimestampString()}.csv`;
   const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csv], { type: 'text/csv;charset=utf-8;' });
+
+  // 1. File System Access API
+  if (typeof window.showSaveFilePicker === 'function') {
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: defaultFilename,
+        types: [
+          {
+            description: 'CSV Files (*.csv)',
+            accept: {
+              'text/csv': ['.csv']
+            }
+          }
+        ]
+      });
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      showToast('指定した場所にCSVファイルを保存しました', 'success');
+      return;
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        return;
+      }
+      console.warn('showSaveFilePicker failed, falling back to standard download:', err);
+    }
+  }
+
+  // 2. フォールバック
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `wealth_simulation_data_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.download = defaultFilename;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 
   showToast('CSVファイルをダウンロードしました', 'success');
+}
+
+function normalizeState(config) {
+  const merged = Object.assign({}, DEFAULT_STATE, config);
+  if (!merged.accounts) merged.accounts = JSON.parse(JSON.stringify(DEFAULT_STATE.accounts));
+
+  // 特定口座パターンの正規化
+  merged.accounts.taxable = Object.assign({}, DEFAULT_STATE.accounts.taxable, merged.accounts.taxable || {});
+  merged.accounts.taxable.patterns = normalizePatterns(merged.accounts.taxable.patterns, DEFAULT_STATE.accounts.taxable.patterns);
+
+  // 旧NISA口座の正規化
+  merged.accounts.oldNisa = Object.assign({}, DEFAULT_STATE.accounts.oldNisa, merged.accounts.oldNisa || {});
+  if (!merged.accounts.oldNisa.years || typeof merged.accounts.oldNisa.years !== 'object') {
+    const initialTotal = parseFloat(merged.accounts.oldNisa.initial) || 0;
+    const perYear = Math.round((initialTotal / 6) * 10) / 10;
+    merged.accounts.oldNisa.years = {
+      2018: perYear,
+      2019: perYear,
+      2020: perYear,
+      2021: perYear,
+      2022: perYear,
+      2023: Math.round((initialTotal - perYear * 5) * 10) / 10
+    };
+  } else {
+    [2018, 2019, 2020, 2021, 2022, 2023].forEach(yr => {
+      if (merged.accounts.oldNisa.years[yr] === undefined) {
+        merged.accounts.oldNisa.years[yr] = 0;
+      } else {
+        merged.accounts.oldNisa.years[yr] = parseFloat(merged.accounts.oldNisa.years[yr]) || 0;
+      }
+    });
+  }
+  if (!merged.accounts.oldNisa.baseYear) {
+    merged.accounts.oldNisa.baseYear = DEFAULT_STATE.accounts.oldNisa.baseYear;
+  }
+
+  // 新NISA口座パターンの正規化
+  merged.accounts.newNisa = Object.assign({}, DEFAULT_STATE.accounts.newNisa, merged.accounts.newNisa || {});
+  merged.accounts.newNisa.patterns = normalizePatterns(merged.accounts.newNisa.patterns, DEFAULT_STATE.accounts.newNisa.patterns);
+
+  return merged;
+}
+
+function normalizePatterns(patterns, defaultPatterns) {
+  if (!Array.isArray(patterns) || patterns.length === 0) {
+    return JSON.parse(JSON.stringify(defaultPatterns));
+  }
+  return [0, 1, 2].map(idx => {
+    const p = patterns[idx] || (defaultPatterns[idx] || { years: 0, monthly: 0 });
+    let years = 0;
+    if (p.years !== undefined) {
+      years = parseInt(p.years, 10) || 0;
+    } else if (p.startAge !== undefined && p.endAge !== undefined) {
+      years = Math.max(0, (parseInt(p.endAge, 10) || 0) - (parseInt(p.startAge, 10) || 0));
+    } else if (idx === 0 && p.monthly > 0) {
+      years = 10;
+    }
+    const monthly = parseFloat(p.monthly) || 0;
+    return { years, monthly };
+  });
 }
 
 /**
@@ -1097,11 +1435,86 @@ function loadStateFromLocalStorage() {
     const saved = localStorage.getItem('wealth_sim_pro_state');
     if (saved) {
       const parsed = JSON.parse(saved);
-      state = Object.assign({}, DEFAULT_STATE, parsed);
+      state = normalizeState(parsed);
     }
   } catch (e) {
     console.warn('LocalStorage load error:', e);
   }
+}
+
+/**
+ * すべての入力数値をゼロにリセットする関数
+ */
+function resetAllToZero() {
+  if (!confirm('すべての入力数値をゼロにリセットしますか？')) {
+    return;
+  }
+
+  state = {
+    currentAge: 0,
+    endAge: 0,
+    accounts: {
+      taxable: {
+        initial: 0,
+        rate: 0,
+        patterns: [
+          { years: 0, monthly: 0 },
+          { years: 0, monthly: 0 },
+          { years: 0, monthly: 0 }
+        ]
+      },
+      oldNisa: {
+        baseYear: 2024,
+        rate: 0,
+        years: {
+          2018: 0,
+          2019: 0,
+          2020: 0,
+          2021: 0,
+          2022: 0,
+          2023: 0
+        }
+      },
+      newNisa: {
+        initial: 0,
+        rate: 0,
+        patterns: [
+          { years: 0, monthly: 0 },
+          { years: 0, monthly: 0 },
+          { years: 0, monthly: 0 }
+        ]
+      },
+      dc: {
+        initial: 0,
+        monthly: 0,
+        rate: 0,
+        receiveAge: 0,
+        yearsPast: 0
+      },
+      stock: {
+        initial: 0,
+        monthly: 0,
+        rate: 0
+      }
+    },
+    pension: {
+      startAge: 0,
+      monthly: 0
+    },
+    withdraw: {
+      startAge: 0,
+      type: 'fixed-amount',
+      monthly: 0,
+      rate: 0
+    },
+    chartType: state.chartType || 'stacked',
+    theme: state.theme || 'dark',
+    detailTableOpen: state.detailTableOpen || false
+  };
+
+  syncStateToUI();
+  updateSimulation();
+  showToast('すべての入力数値をゼロにリセットしました', 'info');
 }
 
 // ============================================================================
@@ -1110,6 +1523,16 @@ function loadStateFromLocalStorage() {
 function formatNumber(num) {
   if (num === null || num === undefined || isNaN(num)) return '0';
   return Number(num).toLocaleString('ja-JP', { maximumFractionDigits: 1 });
+}
+
+function formatMoneyBadge(num) {
+  if (num === null || num === undefined || isNaN(num)) return '0';
+  const val = parseFloat(num);
+  if (val >= 10000) {
+    const oku = (val / 10000).toFixed(1).replace(/\.0$/, '');
+    return `${oku}億 (${formatNumber(val)})`;
+  }
+  return formatNumber(val);
 }
 
 function showToast(msg, type = 'info') {
@@ -1168,11 +1591,15 @@ document.addEventListener('DOMContentLoaded', () => {
       // 取り崩しラジオ切り替え時の表示制御
       if (e.target.name === 'withdraw-type') {
         if (e.target.value === 'fixed-amount') {
-          document.getElementById('box-withdraw-amount').classList.remove('hidden');
-          document.getElementById('box-withdraw-rate').classList.add('hidden');
+          const bAmount = document.getElementById('box-withdraw-amount');
+          const bRate = document.getElementById('box-withdraw-rate');
+          if (bAmount) bAmount.classList.remove('hidden');
+          if (bRate) bRate.classList.add('hidden');
         } else {
-          document.getElementById('box-withdraw-amount').classList.add('hidden');
-          document.getElementById('box-withdraw-rate').classList.remove('hidden');
+          const bAmount = document.getElementById('box-withdraw-amount');
+          const bRate = document.getElementById('box-withdraw-rate');
+          if (bAmount) bAmount.classList.add('hidden');
+          if (bRate) bRate.classList.remove('hidden');
         }
       }
 
@@ -1186,22 +1613,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const box = header.closest('.account-box');
       if (box) {
         box.classList.toggle('collapsed');
-      }
-    });
-  });
-
-  // プリセットボタン
-  document.querySelectorAll('.btn-preset').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const presetKey = btn.dataset.preset;
-      if (PRESETS[presetKey]) {
-        document.querySelectorAll('.btn-preset').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-
-        state = JSON.parse(JSON.stringify(PRESETS[presetKey]));
-        syncStateToUI();
-        updateSimulation();
-        showToast(`「${btn.querySelector('.preset-name').textContent}」シナリオを適用しました`, 'success');
       }
     });
   });
@@ -1247,17 +1658,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // 全初期化リセット
-  const btnReset = document.getElementById('btn-reset-all');
-  if (btnReset) {
-    btnReset.addEventListener('click', () => {
-      if (confirm('すべての入力設定を初期状態に戻しますか？')) {
-        state = JSON.parse(JSON.stringify(DEFAULT_STATE));
-        syncStateToUI();
-        updateSimulation();
-        showToast('設定を初期化しました', 'info');
-      }
-    });
+  // 全数値をゼロにリセット
+  const btnResetZero = document.getElementById('btn-reset-zero');
+  if (btnResetZero) {
+    btnResetZero.addEventListener('click', resetAllToZero);
   }
 
   // 詳細テーブル開閉
@@ -1270,6 +1674,34 @@ document.addEventListener('DOMContentLoaded', () => {
       boxDetail.classList.toggle('collapsed');
       if (iconDetail) {
         iconDetail.style.transform = boxDetail.classList.contains('collapsed') ? 'rotate(0deg)' : 'rotate(180deg)';
+      }
+    });
+  }
+
+  // 旧NISA 均等配分ボタン
+  const btnDistribute = document.getElementById('btn-oldnisa-distribute');
+  if (btnDistribute) {
+    btnDistribute.addEventListener('click', () => {
+      let currentTotal = 0;
+      [2018, 2019, 2020, 2021, 2022, 2023].forEach(yr => {
+        currentTotal += parseFloat(state.accounts.oldNisa.years[yr]) || 0;
+      });
+      const input = prompt('旧NISAの合計評価額（万円）を入力してください。\n2018年〜2023年の6年分に均等配分します。', Math.round(currentTotal) || 240);
+      if (input !== null && input.trim() !== '') {
+        const val = parseFloat(input);
+        if (!isNaN(val) && val >= 0) {
+          const perYear = Math.round((val / 6) * 10) / 10;
+          [2018, 2019, 2020, 2021, 2022, 2023].forEach((yr, idx) => {
+            if (idx === 5) {
+              state.accounts.oldNisa.years[yr] = Math.round((val - perYear * 5) * 10) / 10;
+            } else {
+              state.accounts.oldNisa.years[yr] = perYear;
+            }
+          });
+          syncStateToUI();
+          updateSimulation();
+          showToast(`旧NISA合計 ${val}万円 を各年度に均等配分しました`, 'success');
+        }
       }
     });
   }

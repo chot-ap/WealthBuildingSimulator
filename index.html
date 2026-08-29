@@ -58,8 +58,9 @@
           <i data-lucide="moon" id="icon-theme-dark"></i>
         </button>
 
-        <button id="btn-reset-all" class="btn-icon btn-danger-icon" title="初期設定に戻す" aria-label="初期設定に戻す">
+        <button id="btn-reset-zero" class="btn btn-danger-outline" title="すべての入力数値を0にリセット" aria-label="すべての入力数値を0にリセット">
           <i data-lucide="rotate-ccw"></i>
+          <span>数値をゼロにリセット</span>
         </button>
       </div>
     </header>
@@ -68,33 +69,8 @@
     <div class="main-workspace">
       <!-- Left Panel: Input Controls -->
       <aside class="sidebar-panel">
-        <!-- Preset Selector -->
-        <div class="panel-card preset-card">
-          <div class="card-header">
-            <span class="card-title"><i data-lucide="sparkles"></i> プリセットシナリオ</span>
-          </div>
-          <div class="preset-buttons">
-            <button type="button" class="btn-preset active" data-preset="standard">
-              <span class="preset-name">標準会社員 (NISA+DC)</span>
-              <span class="preset-desc">35歳 / 新NISA月5万 / iDeCo月2.3万 / 年金受給65歳</span>
-            </button>
-            <button type="button" class="btn-preset" data-preset="fire">
-              <span class="preset-name">FIRE・積極投資</span>
-              <span class="preset-desc">30歳 / 新NISA満額+特定 / 55歳早期取崩し</span>
-            </button>
-            <button type="button" class="btn-preset" data-preset="stock-focused">
-              <span class="preset-name">現物株・高配当重視</span>
-              <span class="preset-desc">現物株温存 / 新NISA積立 / 65歳定額取崩し</span>
-            </button>
-            <button type="button" class="btn-preset" data-preset="senior">
-              <span class="preset-name">シニア・退職目前</span>
-              <span class="preset-desc">55歳 / 旧NISA移管あり / 60歳退職金受取</span>
-            </button>
-          </div>
-        </div>
-
         <form id="sim-form" onsubmit="event.preventDefault();">
-          <!-- 1. 基本設定 (現在の年齢) -->
+          <!-- 1. 基本設定 (現在の年齢・積立終了年齢) -->
           <div class="panel-card">
             <div class="card-header">
               <span class="card-title"><i data-lucide="user"></i> 基本プロファイル</span>
@@ -105,9 +81,20 @@
                 <span class="val-badge"><strong id="disp-current-age">35</strong> 歳</span>
               </div>
               <div class="range-row">
-                <input type="range" id="range-current-age" min="20" max="80" step="1" value="35">
-                <input type="number" id="input-current-age" class="num-input" min="20" max="99" value="35">
+                <input type="range" id="range-current-age" min="0" max="90" step="1" value="35">
+                <input type="number" id="input-current-age" class="num-input" min="0" max="99" value="35">
               </div>
+            </div>
+            <div class="form-group" style="margin-top: 0.85rem;">
+              <div class="label-row">
+                <label for="input-end-age">積立終了年齢</label>
+                <span class="val-badge"><strong id="disp-end-age">60</strong> 歳まで</span>
+              </div>
+              <div class="range-row">
+                <input type="range" id="range-end-age" min="0" max="100" step="1" value="60">
+                <input type="number" id="input-end-age" class="num-input" min="0" max="100" value="60">
+              </div>
+              <p class="input-hint">※全口座の積立・拠出の共通終了年齢となります。</p>
             </div>
           </div>
 
@@ -115,7 +102,7 @@
           <div class="panel-card">
             <div class="card-header">
               <span class="card-title"><i data-lucide="wallet"></i> 保有口座ごとの設定</span>
-              <span class="badge-sub">全口座で現在保有資産の入力可能</span>
+              <span class="badge-sub">全口座で億円まで入力可能</span>
             </div>
 
             <!-- ① 特定口座 -->
@@ -127,7 +114,7 @@
                   <span class="acc-tag tag-taxable">取崩し優先 第1位</span>
                 </div>
                 <div class="acc-quick-sum">
-                  <span id="sum-taxable">初期 100万 / 積立 2万</span>
+                  <span id="sum-taxable">初期 100万</span>
                   <i data-lucide="chevron-down" class="acc-chevron"></i>
                 </div>
               </div>
@@ -138,33 +125,98 @@
                     <span class="val-badge"><strong id="disp-taxable-initial">100</strong> 万円</span>
                   </div>
                   <div class="range-row">
-                    <input type="range" id="range-taxable-initial" min="0" max="3000" step="10" value="100">
-                    <input type="number" id="taxable-initial" class="num-input" min="0" max="50000" value="100">
+                    <input type="range" id="range-taxable-initial" min="0" max="50000" step="10" value="100">
+                    <input type="number" id="taxable-initial" class="num-input" min="0" max="100000" step="1" value="100">
                   </div>
                 </div>
-                <div class="form-grid-2">
-                  <div class="form-group">
-                    <div class="label-row">
-                      <label for="taxable-monthly">毎月の積立額</label>
-                      <span class="val-badge"><strong id="disp-taxable-monthly">2.0</strong> 万円/月</span>
-                    </div>
-                    <input type="number" id="taxable-monthly" class="num-input w-full" min="0" max="500" step="0.5" value="2.0">
-                  </div>
-                  <div class="form-group">
-                    <div class="label-row">
-                      <label for="taxable-rate">想定利回り</label>
-                      <span class="val-badge"><strong id="disp-taxable-rate">5.0</strong> %/年</span>
-                    </div>
-                    <input type="number" id="taxable-rate" class="num-input w-full" min="0" max="30" step="0.1" value="5.0">
-                  </div>
-                </div>
+
                 <div class="form-group">
                   <div class="label-row">
-                    <label for="taxable-end-age">積立終了年齢</label>
-                    <span class="val-badge"><strong id="disp-taxable-end-age">60</strong> 歳まで</span>
+                    <label for="taxable-rate">想定利回り</label>
+                    <span class="val-badge"><strong id="disp-taxable-rate">5.0</strong> %/年</span>
                   </div>
-                  <input type="number" id="taxable-end-age" class="num-input w-full" min="20" max="100" value="60">
+                  <input type="number" id="taxable-rate" class="num-input w-full" min="0" max="30" step="0.1" value="5.0">
                 </div>
+
+                <!-- 積立パターン 3パターン -->
+                <div class="patterns-wrapper">
+                  <div class="patterns-header-row">
+                    <span class="patterns-title"><i data-lucide="layers"></i> 積立パターン (最大3期間・順次計算)</span>
+                  </div>
+
+                  <!-- パターン 1 -->
+                  <div class="pattern-box">
+                    <div class="pattern-header">
+                      <span class="pattern-badge">パターン 1</span>
+                      <span id="taxable-p1-effective" class="pattern-effective-badge">実質 10年 (35〜45歳)</span>
+                    </div>
+                    <div class="pattern-fields">
+                      <div class="form-group">
+                        <label for="taxable-p1-years" class="pattern-sublabel">積立期間</label>
+                        <div class="input-unit-group">
+                          <input type="number" id="taxable-p1-years" class="num-input w-full" min="0" max="100" step="1" value="10">
+                          <span class="unit-label">年間</span>
+                        </div>
+                      </div>
+                      <div class="form-group">
+                        <label for="taxable-p1-monthly" class="pattern-sublabel">毎月の積立額</label>
+                        <div class="input-unit-group">
+                          <input type="number" id="taxable-p1-monthly" class="num-input w-full" min="0" max="500" step="0.1" value="2.0">
+                          <span class="unit-label">万円/月</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- パターン 2 -->
+                  <div class="pattern-box">
+                    <div class="pattern-header">
+                      <span class="pattern-badge">パターン 2</span>
+                      <span id="taxable-p2-effective" class="pattern-effective-badge">実質 10年 (45〜55歳)</span>
+                    </div>
+                    <div class="pattern-fields">
+                      <div class="form-group">
+                        <label for="taxable-p2-years" class="pattern-sublabel">積立期間</label>
+                        <div class="input-unit-group">
+                          <input type="number" id="taxable-p2-years" class="num-input w-full" min="0" max="100" step="1" value="10">
+                          <span class="unit-label">年間</span>
+                        </div>
+                      </div>
+                      <div class="form-group">
+                        <label for="taxable-p2-monthly" class="pattern-sublabel">毎月の積立額</label>
+                        <div class="input-unit-group">
+                          <input type="number" id="taxable-p2-monthly" class="num-input w-full" min="0" max="500" step="0.1" value="0.0">
+                          <span class="unit-label">万円/月</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- パターン 3 -->
+                  <div class="pattern-box">
+                    <div class="pattern-header">
+                      <span class="pattern-badge">パターン 3</span>
+                      <span id="taxable-p3-effective" class="pattern-effective-badge">実質 5年 (55〜60歳)</span>
+                    </div>
+                    <div class="pattern-fields">
+                      <div class="form-group">
+                        <label for="taxable-p3-years" class="pattern-sublabel">積立期間</label>
+                        <div class="input-unit-group">
+                          <input type="number" id="taxable-p3-years" class="num-input w-full" min="0" max="100" step="1" value="5">
+                          <span class="unit-label">年間</span>
+                        </div>
+                      </div>
+                      <div class="form-group">
+                        <label for="taxable-p3-monthly" class="pattern-sublabel">毎月の積立額</label>
+                        <div class="input-unit-group">
+                          <input type="number" id="taxable-p3-monthly" class="num-input w-full" min="0" max="500" step="0.1" value="0.0">
+                          <span class="unit-label">万円/月</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 <p class="input-hint">※運用益・売却益に20.315%課税。DC退職金手取り金および旧NISA満了資金の受入先となります。</p>
               </div>
             </div>
@@ -175,24 +227,15 @@
                 <div class="acc-title">
                   <span class="acc-indicator dot-oldnisa"></span>
                   <span class="acc-name">旧NISA口座</span>
-                  <span class="acc-tag tag-oldnisa">特定口座へ非課税移管</span>
+                  <span class="acc-tag tag-oldnisa">20年満了で特定口座へ順次移管</span>
                 </div>
                 <div class="acc-quick-sum">
-                  <span id="sum-oldnisa">初期 200万 / 5年後移管</span>
+                  <span id="sum-oldnisa">合計 240万 (2018〜2023年)</span>
                   <i data-lucide="chevron-down" class="acc-chevron"></i>
                 </div>
               </div>
               <div class="acc-body" id="acc-oldnisa-body">
-                <div class="form-group">
-                  <div class="label-row">
-                    <label for="oldnisa-initial">現在所有している資産額</label>
-                    <span class="val-badge"><strong id="disp-oldnisa-initial">200</strong> 万円</span>
-                  </div>
-                  <div class="range-row">
-                    <input type="range" id="range-oldnisa-initial" min="0" max="2000" step="10" value="200">
-                    <input type="number" id="oldnisa-initial" class="num-input" min="0" max="10000" value="200">
-                  </div>
-                </div>
+                <!-- 基本設定 (利回り & 基準西暦) -->
                 <div class="form-grid-2">
                   <div class="form-group">
                     <div class="label-row">
@@ -203,13 +246,105 @@
                   </div>
                   <div class="form-group">
                     <div class="label-row">
-                      <label for="oldnisa-transfer-age">特定口座への移管年齢</label>
-                      <span class="val-badge"><strong id="disp-oldnisa-transfer-age">40</strong> 歳時点</span>
+                      <label for="oldnisa-base-year">シミュレーション基準年 (現在)</label>
+                      <span class="val-badge"><strong id="disp-oldnisa-base-year">2024</strong> 年</span>
                     </div>
-                    <input type="number" id="oldnisa-transfer-age" class="num-input w-full" min="20" max="100" value="40">
+                    <input type="number" id="oldnisa-base-year" class="num-input w-full" min="2018" max="2050" step="1" value="2024">
                   </div>
                 </div>
-                <p class="input-hint">※非課税期間満了時（指定年齢）に、その時点の時価のまま<strong>非課税で特定口座へ全額移管</strong>されます。</p>
+
+                <!-- 合計評価額表示バナー -->
+                <div class="oldnisa-summary-banner">
+                  <div class="oldnisa-summary-left">
+                    <span class="oldnisa-summary-label">旧NISA 現時点合計評価額</span>
+                    <div class="oldnisa-summary-val"><strong id="disp-oldnisa-total">240</strong> <span>万円</span></div>
+                  </div>
+                  <button type="button" id="btn-oldnisa-distribute" class="btn btn-xs btn-outline" title="合計金額を入力して6年分に均等配分">
+                    <i data-lucide="split"></i> 均等配分
+                  </button>
+                </div>
+
+                <!-- 買付年度別設定グリッド (2018〜2023年) -->
+                <div class="oldnisa-years-container">
+                  <div class="oldnisa-years-title">
+                    <i data-lucide="calendar"></i> 買付年度別の現時点評価額 (20年保有後に特定口座へ順次移管)
+                  </div>
+                  <div class="oldnisa-years-grid">
+                    <!-- 2018年 -->
+                    <div class="oldnisa-year-card">
+                      <div class="oldnisa-year-header">
+                        <span class="oldnisa-year-title">2018年 買付分</span>
+                        <span id="badge-oldnisa-trans-2018" class="oldnisa-transfer-badge">2038年移管</span>
+                      </div>
+                      <div class="input-unit-group">
+                        <input type="number" id="oldnisa-val-2018" class="num-input" min="0" max="100000" step="1" value="40">
+                        <span class="unit-label">万円</span>
+                      </div>
+                    </div>
+
+                    <!-- 2019年 -->
+                    <div class="oldnisa-year-card">
+                      <div class="oldnisa-year-header">
+                        <span class="oldnisa-year-title">2019年 買付分</span>
+                        <span id="badge-oldnisa-trans-2019" class="oldnisa-transfer-badge">2039年移管</span>
+                      </div>
+                      <div class="input-unit-group">
+                        <input type="number" id="oldnisa-val-2019" class="num-input" min="0" max="100000" step="1" value="40">
+                        <span class="unit-label">万円</span>
+                      </div>
+                    </div>
+
+                    <!-- 2020年 -->
+                    <div class="oldnisa-year-card">
+                      <div class="oldnisa-year-header">
+                        <span class="oldnisa-year-title">2020年 買付分</span>
+                        <span id="badge-oldnisa-trans-2020" class="oldnisa-transfer-badge">2040年移管</span>
+                      </div>
+                      <div class="input-unit-group">
+                        <input type="number" id="oldnisa-val-2020" class="num-input" min="0" max="100000" step="1" value="40">
+                        <span class="unit-label">万円</span>
+                      </div>
+                    </div>
+
+                    <!-- 2021年 -->
+                    <div class="oldnisa-year-card">
+                      <div class="oldnisa-year-header">
+                        <span class="oldnisa-year-title">2021年 買付分</span>
+                        <span id="badge-oldnisa-trans-2021" class="oldnisa-transfer-badge">2041年移管</span>
+                      </div>
+                      <div class="input-unit-group">
+                        <input type="number" id="oldnisa-val-2021" class="num-input" min="0" max="100000" step="1" value="40">
+                        <span class="unit-label">万円</span>
+                      </div>
+                    </div>
+
+                    <!-- 2022年 -->
+                    <div class="oldnisa-year-card">
+                      <div class="oldnisa-year-header">
+                        <span class="oldnisa-year-title">2022年 買付分</span>
+                        <span id="badge-oldnisa-trans-2022" class="oldnisa-transfer-badge">2042年移管</span>
+                      </div>
+                      <div class="input-unit-group">
+                        <input type="number" id="oldnisa-val-2022" class="num-input" min="0" max="100000" step="1" value="40">
+                        <span class="unit-label">万円</span>
+                      </div>
+                    </div>
+
+                    <!-- 2023年 -->
+                    <div class="oldnisa-year-card">
+                      <div class="oldnisa-year-header">
+                        <span class="oldnisa-year-title">2023年 買付分</span>
+                        <span id="badge-oldnisa-trans-2023" class="oldnisa-transfer-badge">2043年移管</span>
+                      </div>
+                      <div class="input-unit-group">
+                        <input type="number" id="oldnisa-val-2023" class="num-input" min="0" max="100000" step="1" value="40">
+                        <span class="unit-label">万円</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <p class="input-hint">※各年度の投資枠は20年間非課税運用され、21年目（2018年分→2038年、2023年分→2043年）に時価のまま<strong>特定口座へ順次非課税移管</strong>されます。</p>
               </div>
             </div>
 
@@ -222,7 +357,7 @@
                   <span class="acc-tag tag-newnisa">無期限非課税 (1,800万枠)</span>
                 </div>
                 <div class="acc-quick-sum">
-                  <span id="sum-newnisa">初期 300万 / 積立 5万</span>
+                  <span id="sum-newnisa">初期 300万</span>
                   <i data-lucide="chevron-down" class="acc-chevron"></i>
                 </div>
               </div>
@@ -233,33 +368,98 @@
                     <span class="val-badge"><strong id="disp-newnisa-initial">300</strong> 万円</span>
                   </div>
                   <div class="range-row">
-                    <input type="range" id="range-newnisa-initial" min="0" max="1800" step="10" value="300">
-                    <input type="number" id="newnisa-initial" class="num-input" min="0" max="1800" value="300">
+                    <input type="range" id="range-newnisa-initial" min="0" max="50000" step="10" value="300">
+                    <input type="number" id="newnisa-initial" class="num-input" min="0" max="100000" step="1" value="300">
                   </div>
                 </div>
-                <div class="form-grid-2">
-                  <div class="form-group">
-                    <div class="label-row">
-                      <label for="newnisa-monthly">毎月の積立額</label>
-                      <span class="val-badge"><strong id="disp-newnisa-monthly">5.0</strong> 万円/月</span>
-                    </div>
-                    <input type="number" id="newnisa-monthly" class="num-input w-full" min="0" max="100" step="0.5" value="5.0">
-                  </div>
-                  <div class="form-group">
-                    <div class="label-row">
-                      <label for="newnisa-rate">想定利回り</label>
-                      <span class="val-badge"><strong id="disp-newnisa-rate">5.0</strong> %/年</span>
-                    </div>
-                    <input type="number" id="newnisa-rate" class="num-input w-full" min="0" max="30" step="0.1" value="5.0">
-                  </div>
-                </div>
+
                 <div class="form-group">
                   <div class="label-row">
-                    <label for="newnisa-end-age">積立終了年齢</label>
-                    <span class="val-badge"><strong id="disp-newnisa-end-age">60</strong> 歳まで</span>
+                    <label for="newnisa-rate">想定利回り</label>
+                    <span class="val-badge"><strong id="disp-newnisa-rate">5.0</strong> %/年</span>
                   </div>
-                  <input type="number" id="newnisa-end-age" class="num-input w-full" min="20" max="100" value="60">
+                  <input type="number" id="newnisa-rate" class="num-input w-full" min="0" max="30" step="0.1" value="5.0">
                 </div>
+
+                <!-- 積立パターン 3パターン -->
+                <div class="patterns-wrapper">
+                  <div class="patterns-header-row">
+                    <span class="patterns-title"><i data-lucide="layers"></i> 積立パターン (最大3期間・順次計算)</span>
+                  </div>
+
+                  <!-- パターン 1 -->
+                  <div class="pattern-box">
+                    <div class="pattern-header">
+                      <span class="pattern-badge">パターン 1</span>
+                      <span id="newnisa-p1-effective" class="pattern-effective-badge">実質 10年 (35〜45歳)</span>
+                    </div>
+                    <div class="pattern-fields">
+                      <div class="form-group">
+                        <label for="newnisa-p1-years" class="pattern-sublabel">積立期間</label>
+                        <div class="input-unit-group">
+                          <input type="number" id="newnisa-p1-years" class="num-input w-full" min="0" max="100" step="1" value="10">
+                          <span class="unit-label">年間</span>
+                        </div>
+                      </div>
+                      <div class="form-group">
+                        <label for="newnisa-p1-monthly" class="pattern-sublabel">毎月の積立額</label>
+                        <div class="input-unit-group">
+                          <input type="number" id="newnisa-p1-monthly" class="num-input w-full" min="0" max="500" step="0.1" value="5.0">
+                          <span class="unit-label">万円/月</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- パターン 2 -->
+                  <div class="pattern-box">
+                    <div class="pattern-header">
+                      <span class="pattern-badge">パターン 2</span>
+                      <span id="newnisa-p2-effective" class="pattern-effective-badge">実質 10年 (45〜55歳)</span>
+                    </div>
+                    <div class="pattern-fields">
+                      <div class="form-group">
+                        <label for="newnisa-p2-years" class="pattern-sublabel">積立期間</label>
+                        <div class="input-unit-group">
+                          <input type="number" id="newnisa-p2-years" class="num-input w-full" min="0" max="100" step="1" value="10">
+                          <span class="unit-label">年間</span>
+                        </div>
+                      </div>
+                      <div class="form-group">
+                        <label for="newnisa-p2-monthly" class="pattern-sublabel">毎月の積立額</label>
+                        <div class="input-unit-group">
+                          <input type="number" id="newnisa-p2-monthly" class="num-input w-full" min="0" max="500" step="0.1" value="0.0">
+                          <span class="unit-label">万円/月</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- パターン 3 -->
+                  <div class="pattern-box">
+                    <div class="pattern-header">
+                      <span class="pattern-badge">パターン 3</span>
+                      <span id="newnisa-p3-effective" class="pattern-effective-badge">実質 5年 (55〜60歳)</span>
+                    </div>
+                    <div class="pattern-fields">
+                      <div class="form-group">
+                        <label for="newnisa-p3-years" class="pattern-sublabel">積立期間</label>
+                        <div class="input-unit-group">
+                          <input type="number" id="newnisa-p3-years" class="num-input w-full" min="0" max="100" step="1" value="5">
+                          <span class="unit-label">年間</span>
+                        </div>
+                      </div>
+                      <div class="form-group">
+                        <label for="newnisa-p3-monthly" class="pattern-sublabel">毎月の積立額</label>
+                        <div class="input-unit-group">
+                          <input type="number" id="newnisa-p3-monthly" class="num-input w-full" min="0" max="500" step="0.1" value="0.0">
+                          <span class="unit-label">万円/月</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 <!-- 枠上限プログレス -->
                 <div class="nisa-progress-box">
                   <div class="nisa-progress-labels">
@@ -294,8 +494,8 @@
                     <span class="val-badge"><strong id="disp-dc-initial">150</strong> 万円</span>
                   </div>
                   <div class="range-row">
-                    <input type="range" id="range-dc-initial" min="0" max="3000" step="10" value="150">
-                    <input type="number" id="dc-initial" class="num-input" min="0" max="10000" value="150">
+                    <input type="range" id="range-dc-initial" min="0" max="50000" step="10" value="150">
+                    <input type="number" id="dc-initial" class="num-input" min="0" max="100000" step="1" value="150">
                   </div>
                 </div>
                 <div class="form-grid-2">
@@ -317,25 +517,18 @@
                 <div class="form-grid-2">
                   <div class="form-group">
                     <div class="label-row">
-                      <label for="dc-end-age">拠出終了年齢</label>
-                      <span class="val-badge"><strong id="disp-dc-end-age">60</strong> 歳まで</span>
-                    </div>
-                    <input type="number" id="dc-end-age" class="num-input w-full" min="20" max="75" value="60">
-                  </div>
-                  <div class="form-group">
-                    <div class="label-row">
                       <label for="dc-receive-age">退職金受取年齢</label>
                       <span class="val-badge"><strong id="disp-dc-receive-age">60</strong> 歳受取</span>
                     </div>
-                    <input type="number" id="dc-receive-age" class="num-input w-full" min="60" max="75" value="60">
+                    <input type="number" id="dc-receive-age" class="num-input w-full" min="0" max="75" value="60">
                   </div>
-                </div>
-                <div class="form-group">
-                  <div class="label-row">
-                    <label for="dc-years-past">これまでの拠出年数 (勤続年数)</label>
-                    <span class="val-badge"><strong id="disp-dc-years-past">5</strong> 年済</span>
+                  <div class="form-group">
+                    <div class="label-row">
+                      <label for="dc-years-past">これまでの拠出年数 (勤続年数)</label>
+                      <span class="val-badge"><strong id="disp-dc-years-past">5</strong> 年済</span>
+                    </div>
+                    <input type="number" id="dc-years-past" class="num-input w-full" min="0" max="50" value="5">
                   </div>
-                  <input type="number" id="dc-years-past" class="num-input w-full" min="0" max="50" value="5">
                 </div>
                 <!-- 退職控除計算プレビュー -->
                 <div class="dc-calc-preview" id="dc-calc-preview-box">
@@ -348,7 +541,7 @@
                     <div class="col-span-2 highlight-transfer">特定口座への移管手取り額: <strong id="preview-dc-net" class="text-success">-</strong> 万円</div>
                   </div>
                 </div>
-                <p class="input-hint">※現行の退職所得控除制（20年以下:40万/年、20年超:800万+70万/年、課税1/2）で税額を算出し、<strong>手取り額が特定口座へ移管</strong>されます。</p>
+                <p class="input-hint">※拠出は基本プロファイルの積立終了年齢まで継続されます。現行の退職所得控除制（20年以下:40万/年、20年超:800万+70万/年、課税1/2）で税額を算出し、<strong>手取り額が特定口座へ移管</strong>されます。</p>
               </div>
             </div>
 
@@ -361,7 +554,7 @@
                   <span class="acc-tag tag-stock">原則取崩し対象外</span>
                 </div>
                 <div class="acc-quick-sum">
-                  <span id="sum-stock">初期 200万 / 積立 0万</span>
+                  <span id="sum-stock">初期 200万</span>
                   <i data-lucide="chevron-down" class="acc-chevron"></i>
                 </div>
               </div>
@@ -372,8 +565,8 @@
                     <span class="val-badge"><strong id="disp-stock-initial">200</strong> 万円</span>
                   </div>
                   <div class="range-row">
-                    <input type="range" id="range-stock-initial" min="0" max="3000" step="10" value="200">
-                    <input type="number" id="stock-initial" class="num-input" min="0" max="50000" value="200">
+                    <input type="range" id="range-stock-initial" min="0" max="50000" step="10" value="200">
+                    <input type="number" id="stock-initial" class="num-input" min="0" max="100000" step="1" value="200">
                   </div>
                 </div>
                 <div class="form-grid-2">
@@ -408,7 +601,7 @@
                   <label for="pension-start-age">受給開始年齢</label>
                   <span class="val-badge"><strong id="disp-pension-start-age">65</strong> 歳</span>
                 </div>
-                <input type="number" id="pension-start-age" class="num-input w-full" min="60" max="75" value="65">
+                <input type="number" id="pension-start-age" class="num-input w-full" min="0" max="100" value="65">
               </div>
               <div class="form-group">
                 <div class="label-row">
@@ -434,8 +627,8 @@
                 <span class="val-badge"><strong id="disp-withdraw-start-age">65</strong> 歳</span>
               </div>
               <div class="range-row">
-                <input type="range" id="range-withdraw-start-age" min="40" max="80" step="1" value="65">
-                <input type="number" id="withdraw-start-age" class="num-input" min="40" max="90" value="65">
+                <input type="range" id="range-withdraw-start-age" min="0" max="90" step="1" value="65">
+                <input type="number" id="withdraw-start-age" class="num-input" min="0" max="100" value="65">
               </div>
             </div>
 
@@ -464,8 +657,8 @@
                 <span class="val-badge"><strong id="disp-withdraw-monthly">20.0</strong> 万円/月</span>
               </div>
               <div class="range-row">
-                <input type="range" id="range-withdraw-monthly" min="1" max="100" step="0.5" value="20.0">
-                <input type="number" id="withdraw-monthly" class="num-input" min="1" max="500" step="0.5" value="20.0">
+                <input type="range" id="range-withdraw-monthly" min="0" max="100" step="0.5" value="20.0">
+                <input type="number" id="withdraw-monthly" class="num-input" min="0" max="500" step="0.5" value="20.0">
               </div>
               <p class="input-hint">※年間取り崩し額: <span id="disp-withdraw-annual">240</span> 万円</p>
             </div>
@@ -477,8 +670,8 @@
                 <span class="val-badge"><strong id="disp-withdraw-rate">4.0</strong> %/年</span>
               </div>
               <div class="range-row">
-                <input type="range" id="range-withdraw-rate" min="0.5" max="15.0" step="0.1" value="4.0">
-                <input type="number" id="withdraw-rate" class="num-input" min="0.5" max="30" step="0.1" value="4.0">
+                <input type="range" id="range-withdraw-rate" min="0" max="15.0" step="0.1" value="4.0">
+                <input type="number" id="withdraw-rate" class="num-input" min="0" max="30" step="0.1" value="4.0">
               </div>
               <p class="input-hint">※4%ルール等の定率取崩し。前年末の対象口座総残高に適用されます。</p>
             </div>

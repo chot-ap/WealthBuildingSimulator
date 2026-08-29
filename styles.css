@@ -252,6 +252,18 @@ body {
   border-color: var(--col-danger);
 }
 
+.btn-danger-outline {
+  background: rgba(239, 68, 68, 0.08);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.btn-danger-outline:hover {
+  background: rgba(239, 68, 68, 0.18);
+  border-color: var(--col-danger);
+  color: #ffffff;
+}
+
 .btn-sm {
   font-size: 0.75rem;
   padding: 0.35rem 0.65rem;
@@ -586,6 +598,110 @@ input[type="range"]::-webkit-slider-thumb:hover {
   flex-direction: column;
   gap: 0.75rem;
   background: rgba(0, 0, 0, 0.15);
+}
+
+/* Multi-period Investment Patterns */
+.patterns-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+
+.patterns-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.patterns-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.pattern-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 0.55rem 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  transition: border-color var(--transition-fast);
+}
+
+.pattern-box:hover {
+  border-color: var(--border-active);
+}
+
+.pattern-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pattern-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  letter-spacing: 0.02em;
+}
+
+.pattern-effective-badge {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+  background: rgba(99, 102, 241, 0.12);
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  transition: all var(--transition-fast);
+}
+
+.pattern-effective-badge.badge-capped {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+.pattern-effective-badge.badge-zero {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+  border-color: transparent;
+}
+
+.pattern-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+  align-items: flex-end;
+}
+
+.pattern-sublabel {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.unit-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.input-unit-group {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 
 /* NISA Progress Bar */
@@ -1191,3 +1307,136 @@ input[type="range"]::-webkit-slider-thumb:hover {
   from { opacity: 1; transform: translateY(0) scale(1); }
   to { opacity: 0; transform: translateY(8px) scale(0.95); }
 }
+
+/* ==========================================================================
+   Old NISA Year-by-Year Component Styles
+   ========================================================================== */
+.oldnisa-summary-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: 8px;
+  padding: 0.65rem 0.85rem;
+}
+
+.oldnisa-summary-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.oldnisa-summary-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--col-oldnisa);
+}
+
+.oldnisa-summary-val {
+  font-family: var(--font-num);
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.oldnisa-summary-val span {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.btn-xs {
+  padding: 0.25rem 0.6rem;
+  font-size: 0.72rem;
+  border-radius: 6px;
+  gap: 0.3rem;
+}
+
+.oldnisa-years-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.oldnisa-years-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.oldnisa-years-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem;
+}
+
+@media (max-width: 640px) {
+  .oldnisa-years-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.oldnisa-year-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 7px;
+  padding: 0.55rem 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  transition: all var(--transition-fast);
+}
+
+.oldnisa-year-card:hover {
+  border-color: rgba(245, 158, 11, 0.4);
+  background: var(--bg-card-hover);
+}
+
+.oldnisa-year-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.oldnisa-year-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.oldnisa-transfer-badge {
+  font-size: 0.63rem;
+  font-weight: 600;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  background: rgba(245, 158, 11, 0.12);
+  color: var(--col-oldnisa);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  white-space: nowrap;
+}
+
+.oldnisa-year-card .input-unit-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.oldnisa-year-card .num-input {
+  width: 100%;
+  padding-right: 2.2rem;
+  font-size: 0.85rem;
+}
+
+.oldnisa-year-card .unit-label {
+  position: absolute;
+  right: 0.6rem;
+  pointer-events: none;
+}
+
