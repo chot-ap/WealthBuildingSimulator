@@ -806,6 +806,11 @@ function updateSimulation() {
   setText('kpi-pension-total', formatNumber(sim.summary.totalPension));
   setText('kpi-pension-span', `${state.pension.startAge}歳〜100歳 (月${state.pension.monthly}万)`);
 
+  // モバイル用サマリーバー & タブバッジ更新
+  setText('summary-bar-peak', `${formatNumber(sim.summary.peakAssets)} 万`);
+  setText('summary-bar-end', `${formatNumber(sim.summary.finalAssets)} 万`);
+  setText('tab-badge-peak', `${formatNumber(sim.summary.peakAssets)} 万`);
+
   // DCプレビューボックス更新
   if (state.accounts.dc.receiveAge > 0 && sim.summary.dcNet > 0) {
     const grossDc = sim.summary.dcNet + sim.summary.dcTax;
@@ -1705,6 +1710,50 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
+
+  // モバイルタブ切り替えハンドラ
+  function switchMobileTab(target) {
+    const tabInputs = document.getElementById('tab-btn-inputs');
+    const tabResults = document.getElementById('tab-btn-results');
+    if (target === 'results') {
+      document.body.classList.remove('tab-active-inputs');
+      document.body.classList.add('tab-active-results');
+      if (tabInputs) tabInputs.classList.remove('active');
+      if (tabResults) tabResults.classList.add('active');
+      if (mainChartInstance) {
+        setTimeout(() => mainChartInstance.resize(), 60);
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      document.body.classList.remove('tab-active-results');
+      document.body.classList.add('tab-active-inputs');
+      if (tabInputs) tabInputs.classList.add('active');
+      if (tabResults) tabResults.classList.remove('active');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
+
+  const tabInputs = document.getElementById('tab-btn-inputs');
+  const tabResults = document.getElementById('tab-btn-results');
+  if (tabInputs) tabInputs.addEventListener('click', () => switchMobileTab('inputs'));
+  if (tabResults) tabResults.addEventListener('click', () => switchMobileTab('results'));
+
+  const btnJump = document.getElementById('btn-summary-jump-results');
+  if (btnJump) {
+    btnJump.addEventListener('click', () => {
+      switchMobileTab('results');
+    });
+  }
+
+  // デフォルトタブ設定
+  document.body.classList.add('tab-active-inputs');
+
+  // ウィンドウリサイズ時のグラフリサイズ自動追従
+  window.addEventListener('resize', () => {
+    if (mainChartInstance) {
+      mainChartInstance.resize();
+    }
+  });
 
   // Lucideアイコン初期化
   if (window.lucide) {
