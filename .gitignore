@@ -21,3 +21,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .tmp/
+
+# Simulation data / exported files
+wealth_simulation_*.json
+wealth_simulation_*.csv
+*.csv
