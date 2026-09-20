@@ -1,0 +1,4440 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>マルチ口座 資産運用シミュレーター PRO</title>
+  <meta name="description" content="特定口座・旧NISA・新NISA・確定拠出年金・株式現物に対応した、ライフサイクル資産運用シミュレーター。退職所得控除やマイルストーン表、設定のJSON保存読込に対応。">
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <!-- Custom CSS -->
+  <style id="inline-styles">
+/* ==========================================================================
+   マルチ口座 資産運用シミュレーター PRO (Wealth Simulator Pro)
+   Modern Design System & Smartphone Responsive Styling
+   ========================================================================== */
+
+:root {
+  /* Color Palette - Dark Theme (Default) */
+  --bg-app: #0b0f19;
+  --bg-panel: rgba(18, 24, 38, 0.75);
+  --bg-card: rgba(26, 34, 52, 0.65);
+  --bg-card-hover: rgba(36, 47, 72, 0.75);
+  --bg-input: #121827;
+  --bg-input-hover: #1b2337;
+  
+  --border-color: rgba(255, 255, 255, 0.08);
+  --border-active: rgba(99, 102, 241, 0.4);
+  
+  --text-primary: #f3f4f6;
+  --text-secondary: #9ca3af;
+  --text-muted: #6b7280;
+  
+  /* Brand Accent Colors for Accounts */
+  --col-taxable: #06b6d4;      /* Cyan */
+  --col-taxable-bg: rgba(6, 182, 212, 0.12);
+  --col-oldnisa: #f59e0b;      /* Amber */
+  --col-oldnisa-bg: rgba(245, 158, 11, 0.12);
+  --col-newnisa: #10b981;      /* Emerald */
+  --col-newnisa-bg: rgba(16, 185, 129, 0.12);
+  --col-dc: #8b5cf6;           /* Violet */
+  --col-dc-bg: rgba(139, 92, 246, 0.12);
+  --col-stock: #f43f5e;        /* Rose */
+  --col-stock-bg: rgba(244, 63, 94, 0.12);
+  
+  --col-primary: #6366f1;      /* Indigo */
+  --col-primary-hover: #4f46e5;
+  --col-danger: #ef4444;
+  --col-success: #10b981;
+  --col-warning: #f59e0b;
+  
+  /* Typography */
+  --font-sans: 'Outfit', 'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-num: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+  
+  /* Shadows & Glassmorphism */
+  --glass-blur: blur(14px);
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.2);
+  
+  /* Transitions */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.25s ease;
+}
+
+[data-theme="light"] {
+  --bg-app: #f4f6fb;
+  --bg-panel: rgba(255, 255, 255, 0.88);
+  --bg-card: rgba(255, 255, 255, 0.95);
+  --bg-card-hover: #ffffff;
+  --bg-input: #f1f4f9;
+  --bg-input-hover: #e5e9f2;
+  
+  --border-color: rgba(0, 0, 0, 0.08);
+  --border-active: rgba(99, 102, 241, 0.5);
+  
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --text-muted: #9ca3af;
+  
+  --col-taxable-bg: rgba(6, 182, 212, 0.08);
+  --col-oldnisa-bg: rgba(245, 158, 11, 0.08);
+  --col-newnisa-bg: rgba(16, 185, 129, 0.08);
+  --col-dc-bg: rgba(139, 92, 246, 0.08);
+  --col-stock-bg: rgba(244, 63, 94, 0.08);
+  
+  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 6px 16px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.1);
+  --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.15);
+}
+
+/* ==========================================================================
+   Base Resets & Global Styles
+   ========================================================================== */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  line-height: 1.5;
+  min-height: 100vh;
+  overflow-x: hidden;
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.12) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.08) 0px, transparent 50%),
+    radial-gradient(at 50% 50%, rgba(139, 92, 246, 0.05) 0px, transparent 60%);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  max-width: 1720px;
+  margin: 0 auto;
+  padding: 0 1.25rem 3rem;
+}
+
+/* ==========================================================================
+   Header Styling (Responsive)
+   ========================================================================== */
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 0;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  flex-wrap: wrap;
+  gap: 0.85rem;
+}
+
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.brand-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--col-primary), #a855f7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+  flex-shrink: 0;
+}
+
+.brand-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.header-brand h1 {
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.badge-pro {
+  font-size: 0.65rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #f59e0b, #ec4899);
+  color: white;
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.brand-subtitle {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-top: 0.15rem;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.5rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-decoration: none;
+  white-space: nowrap;
+  min-height: 38px;
+  touch-action: manipulation;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--col-primary), #4f46e5);
+  color: white;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+}
+
+.btn-primary:hover, .btn-primary:active {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+.btn-secondary:hover, .btn-secondary:active {
+  background: var(--bg-card-hover);
+  border-color: var(--border-active);
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--text-secondary);
+  border-color: var(--border-color);
+}
+
+.btn-outline:hover, .btn-outline:active {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+}
+
+.btn-icon {
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+  touch-action: manipulation;
+}
+
+.btn-icon:hover, .btn-icon:active {
+  color: var(--text-primary);
+  border-color: var(--border-active);
+  background: var(--bg-card-hover);
+}
+
+.btn-danger-outline {
+  background: rgba(239, 68, 68, 0.08);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.btn-danger-outline:hover, .btn-danger-outline:active {
+  background: rgba(239, 68, 68, 0.18);
+  border-color: var(--col-danger);
+  color: #ffffff;
+}
+
+.btn-sm {
+  font-size: 0.75rem;
+  padding: 0.35rem 0.65rem;
+  min-height: 32px;
+}
+
+.btn-xs {
+  padding: 0.25rem 0.55rem;
+  font-size: 0.72rem;
+  border-radius: 6px;
+  gap: 0.3rem;
+  min-height: 28px;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* ==========================================================================
+   Mobile Nav Tabs (Visible on screens <= 960px)
+   ========================================================================== */
+.mobile-nav-tabs {
+  display: none;
+  background: var(--bg-panel);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 0.35rem;
+  margin-bottom: 1rem;
+  gap: 0.4rem;
+  position: sticky;
+  top: 0.5rem;
+  z-index: 50;
+  box-shadow: var(--shadow-md);
+}
+
+.mobile-tab-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 8px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  position: relative;
+  touch-action: manipulation;
+}
+
+.mobile-tab-btn i {
+  width: 18px;
+  height: 18px;
+}
+
+.mobile-tab-btn.active {
+  background: var(--col-primary);
+  color: white;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
+}
+
+.mobile-tab-badge {
+  font-family: var(--font-num);
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 0.1rem 0.4rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  margin-left: 0.2rem;
+}
+
+/* ==========================================================================
+   Workspace Layout (Grid 2-Column Desktop / Fluid Mobile)
+   ========================================================================== */
+.main-workspace {
+  display: grid;
+  grid-template-columns: 460px 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+/* Sidebar & Content Panels */
+.sidebar-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.content-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.panel-card {
+  background: var(--bg-panel);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 1.25rem;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0.6rem;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.card-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.badge-sub {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+}
+
+.badge-priority {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--col-primary);
+  background: rgba(99, 102, 241, 0.12);
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+}
+
+/* Form Controls & Range Sliders */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  gap: 0.5rem;
+}
+
+.val-badge {
+  font-family: var(--font-num);
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.val-badge strong {
+  font-size: 1rem;
+  color: var(--col-primary);
+}
+
+.range-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+input[type="range"] {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--border-color);
+  outline: none;
+  cursor: pointer;
+  touch-action: pan-y;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--col-primary);
+  border: 2px solid white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--col-primary);
+  border: 2px solid white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover,
+input[type="range"]::-webkit-slider-thumb:active {
+  transform: scale(1.15);
+}
+
+.num-input {
+  width: 82px;
+  min-height: 38px;
+  padding: 0.4rem 0.5rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-family: var(--font-num);
+  font-size: 0.95rem; /* iOS Safari zoom prevention */
+  font-weight: 600;
+  text-align: right;
+  outline: none;
+  transition: border-color var(--transition-fast);
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.num-input:focus {
+  border-color: var(--col-primary);
+  background: var(--bg-input-hover);
+}
+
+.num-input.w-full {
+  width: 100%;
+}
+
+.form-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.input-hint {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.alert-hint {
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px dashed rgba(99, 102, 241, 0.25);
+  border-radius: 8px;
+  padding: 0.6rem 0.75rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  color: var(--text-secondary);
+}
+
+.alert-hint i {
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+/* ==========================================================================
+   Account Box Styling (5 Accounts)
+   ========================================================================== */
+.account-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  overflow: hidden;
+  transition: border-color var(--transition-fast);
+  margin-bottom: 0.6rem;
+}
+
+.account-box:hover {
+  border-color: var(--border-active);
+}
+
+.acc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.8rem 0.9rem;
+  cursor: pointer;
+  user-select: none;
+  background: rgba(255, 255, 255, 0.02);
+  gap: 0.5rem;
+  min-height: 48px; /* Touch target */
+  touch-action: manipulation;
+}
+
+.acc-header:hover, .acc-header:active {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.acc-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.acc-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dot-taxable { background: var(--col-taxable); box-shadow: 0 0 6px var(--col-taxable); }
+.dot-oldnisa { background: var(--col-oldnisa); box-shadow: 0 0 6px var(--col-oldnisa); }
+.dot-newnisa { background: var(--col-newnisa); box-shadow: 0 0 6px var(--col-newnisa); }
+.dot-dc { background: var(--col-dc); box-shadow: 0 0 6px var(--col-dc); }
+.dot-stock { background: var(--col-stock); box-shadow: 0 0 6px var(--col-stock); }
+
+.acc-name {
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.acc-tag {
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+}
+
+.tag-taxable { color: var(--col-taxable); background: var(--col-taxable-bg); }
+.tag-oldnisa { color: var(--col-oldnisa); background: var(--col-oldnisa-bg); }
+.tag-newnisa { color: var(--col-newnisa); background: var(--col-newnisa-bg); }
+.tag-dc { color: var(--col-dc); background: var(--col-dc-bg); }
+.tag-stock { color: var(--col-stock); background: var(--col-stock-bg); }
+
+.acc-quick-sum {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.acc-chevron {
+  width: 16px;
+  height: 16px;
+  transition: transform var(--transition-normal);
+  flex-shrink: 0;
+}
+
+.account-box.collapsed .acc-body {
+  display: none;
+}
+
+.account-box.collapsed .acc-chevron {
+  transform: rotate(-90deg);
+}
+
+.acc-body {
+  padding: 0.9rem;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  background: rgba(0, 0, 0, 0.15);
+}
+
+/* Multi-period Investment Patterns */
+.patterns-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 0.75rem;
+}
+
+.patterns-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.patterns-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.pattern-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.65rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  transition: border-color var(--transition-fast);
+}
+
+.pattern-box:hover {
+  border-color: var(--border-active);
+}
+
+.pattern-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.pattern-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  letter-spacing: 0.02em;
+}
+
+.pattern-effective-badge {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 0.12rem 0.45rem;
+  border-radius: 4px;
+  background: rgba(99, 102, 241, 0.12);
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  transition: all var(--transition-fast);
+}
+
+.pattern-effective-badge.badge-capped {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+.pattern-effective-badge.badge-zero {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+  border-color: transparent;
+}
+
+.pattern-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+  align-items: flex-end;
+}
+
+.pattern-sublabel {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.unit-label {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.input-unit-group {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+/* NISA Progress Bar */
+.nisa-progress-box {
+  background: var(--bg-input);
+  border-radius: 8px;
+  padding: 0.65rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.nisa-progress-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.progress-bar-bg {
+  width: 100%;
+  height: 7px;
+  background: var(--border-color);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--col-newnisa), #34d399);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+/* DC Preview Box */
+.dc-calc-preview {
+  background: rgba(139, 92, 246, 0.08);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 8px;
+  padding: 0.7rem 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.preview-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--col-dc);
+}
+
+.preview-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem 0.6rem;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.preview-grid strong {
+  color: var(--text-primary);
+  font-family: var(--font-num);
+}
+
+.col-span-2 {
+  grid-column: span 2;
+}
+
+.highlight-transfer {
+  border-top: 1px dashed rgba(139, 92, 246, 0.3);
+  padding-top: 0.4rem;
+  margin-top: 0.2rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.text-danger { color: var(--col-danger) !important; }
+.text-success { color: var(--col-success) !important; }
+
+/* Withdraw Radio Type Selector */
+.withdraw-type-selector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.radio-card {
+  position: relative;
+  display: flex;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.radio-card input {
+  position: absolute;
+  opacity: 0;
+}
+
+.radio-content {
+  width: 100%;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.65rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  transition: all var(--transition-fast);
+}
+
+.radio-card input:checked + .radio-content {
+  border-color: var(--col-primary);
+  background: rgba(99, 102, 241, 0.12);
+}
+
+.radio-title {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.radio-desc {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+/* ==========================================================================
+   Old NISA Year-by-Year Component Styles
+   ========================================================================== */
+.oldnisa-summary-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: 8px;
+  padding: 0.65rem 0.85rem;
+}
+
+.oldnisa-summary-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.oldnisa-summary-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--col-oldnisa);
+}
+
+.oldnisa-summary-val {
+  font-family: var(--font-num);
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.oldnisa-summary-val span {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.oldnisa-years-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.oldnisa-years-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.oldnisa-years-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem;
+}
+
+.oldnisa-year-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.6rem 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  transition: all var(--transition-fast);
+}
+
+.oldnisa-year-card:hover {
+  border-color: rgba(245, 158, 11, 0.4);
+  background: var(--bg-card-hover);
+}
+
+.oldnisa-year-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.oldnisa-year-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.oldnisa-transfer-badge {
+  font-size: 0.63rem;
+  font-weight: 600;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  background: rgba(245, 158, 11, 0.12);
+  color: var(--col-oldnisa);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  white-space: nowrap;
+}
+
+.oldnisa-year-card .input-unit-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.oldnisa-year-card .num-input {
+  width: 100%;
+  padding-right: 2.2rem;
+  font-size: 0.95rem;
+}
+
+.oldnisa-year-card .unit-label {
+  position: absolute;
+  right: 0.6rem;
+  pointer-events: none;
+}
+
+/* ==========================================================================
+   KPI Cards Grid (Responsive 4-col Desktop / 2-col Mobile)
+   ========================================================================== */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+.kpi-card {
+  background: var(--bg-panel);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 0.9rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  overflow: hidden;
+  transition: transform var(--transition-fast), border-color var(--transition-fast);
+}
+
+.kpi-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-active);
+}
+
+.kpi-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+}
+
+.card-peak::before { background: var(--col-primary); }
+.card-end::before { background: var(--col-success); }
+.card-dc::before { background: var(--col-dc); }
+.card-pension::before { background: var(--col-oldnisa); }
+
+.kpi-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.card-peak .kpi-icon { background: rgba(99, 102, 241, 0.15); color: var(--col-primary); }
+.card-end .kpi-icon { background: rgba(16, 185, 129, 0.15); color: var(--col-success); }
+.card-dc .kpi-icon { background: rgba(139, 92, 246, 0.15); color: var(--col-dc); }
+.card-pension .kpi-icon { background: rgba(245, 158, 11, 0.15); color: var(--col-oldnisa); }
+
+.kpi-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  overflow: hidden;
+}
+
+.kpi-label {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kpi-val {
+  font-family: var(--font-num);
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.kpi-sub {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ==========================================================================
+   Section Card & Chart Styling
+   ========================================================================== */
+.section-card {
+  background: var(--bg-panel);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 1.25rem;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.section-title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.section-title-group h2 {
+  font-size: 1rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.section-badge {
+  font-size: 0.68rem;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  color: var(--text-secondary);
+}
+
+.badge-accent {
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--col-primary);
+  font-weight: 600;
+}
+
+/* Chart Controls */
+.btn-group {
+  display: inline-flex;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 3px;
+}
+
+.btn-toggle {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  touch-action: manipulation;
+}
+
+.btn-toggle:hover {
+  color: var(--text-primary);
+}
+
+.btn-toggle.active {
+  background: var(--col-primary);
+  color: white;
+  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.3);
+}
+
+.chart-container {
+  position: relative;
+  width: 100%;
+  height: 380px;
+}
+
+.chart-legend-custom {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.85rem;
+  justify-content: center;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.legend-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.legend-pill .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background-color: var(--c);
+}
+
+/* ==========================================================================
+   Milestone Cards & Table (Carousel on Mobile)
+   ========================================================================== */
+.milestone-scroll-hint {
+  display: none;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  color: var(--col-primary);
+  font-weight: 600;
+}
+
+.milestone-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.75rem;
+}
+
+.milestone-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  transition: all var(--transition-fast);
+  position: relative;
+}
+
+.milestone-card:hover {
+  border-color: var(--border-active);
+  transform: translateY(-2px);
+}
+
+.m-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.m-age {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.m-status-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+}
+
+.status-rich { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+.status-stable { background: rgba(6, 182, 212, 0.15); color: #06b6d4; }
+.status-warning { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+.status-depleted { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+
+.m-total {
+  display: flex;
+  flex-direction: column;
+}
+
+.m-total-label {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.m-total-val {
+  font-family: var(--font-num);
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.m-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.7rem;
+  border-top: 1px dashed var(--border-color);
+  padding-top: 0.4rem;
+}
+
+.m-row {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-secondary);
+}
+
+.m-row strong {
+  font-family: var(--font-num);
+  color: var(--text-primary);
+}
+
+.m-cashflow-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.68rem;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 0.3rem 0.45rem;
+  border-radius: 4px;
+  margin-top: 0.2rem;
+}
+
+/* ==========================================================================
+   Table Responsive Layout & Indicators
+   ========================================================================== */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-active) transparent;
+}
+
+.table-responsive::-webkit-scrollbar {
+  height: 6px;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+  background: var(--border-active);
+  border-radius: 3px;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.data-table th, .data-table td {
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.data-table th {
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--text-secondary);
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.data-table th:first-child, .data-table td:first-child {
+  text-align: left;
+}
+
+.data-table tbody tr:hover {
+  background: var(--bg-card-hover);
+}
+
+.milestone-table tbody tr td:first-child {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* Detail Table Collapse */
+.cursor-pointer {
+  cursor: pointer;
+  user-select: none;
+}
+
+.header-action-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  color: var(--col-primary);
+}
+
+.detail-table-collapse {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.detail-table-collapse.collapsed {
+  display: none;
+}
+
+.table-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.table-desc {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.full-detail-table th {
+  font-size: 0.72rem;
+}
+
+.full-detail-table td {
+  font-family: var(--font-num);
+  font-size: 0.78rem;
+}
+
+/* ==========================================================================
+   Mobile Quick Summary Bottom Floating Bar
+   ========================================================================== */
+.mobile-summary-bar {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--bg-panel);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid var(--border-active);
+  padding: 0.65rem 1rem max(0.65rem, env(safe-area-inset-bottom));
+  z-index: 100;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.4);
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.summary-bar-content {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  flex: 1;
+  overflow: hidden;
+}
+
+.summary-stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.summary-stat-label {
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.summary-stat-val {
+  font-family: var(--font-num);
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--col-primary);
+  white-space: nowrap;
+}
+
+.summary-stat-divider {
+  width: 1px;
+  height: 24px;
+  background: var(--border-color);
+}
+
+.btn-summary-jump {
+  flex-shrink: 0;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.8rem;
+  border-radius: 8px;
+}
+
+/* ==========================================================================
+   Toast Notifications
+   ========================================================================== */
+.toast-container {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.toast {
+  background: var(--bg-panel);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border-active);
+  color: var(--text-primary);
+  padding: 0.75rem 1.1rem;
+  border-radius: 10px;
+  box-shadow: var(--shadow-lg);
+  font-size: 0.82rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  pointer-events: auto;
+  animation: toastIn 0.25s ease-out forwards;
+}
+
+.toast.toast-success {
+  border-color: var(--col-success);
+}
+
+.toast.toast-error {
+  border-color: var(--col-danger);
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes toastOut {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(8px) scale(0.95); }
+}
+
+/* ==========================================================================
+   Comprehensive Responsive Media Queries
+   ========================================================================== */
+
+/* Tablet & Smaller Desktops (<= 1200px) */
+@media (max-width: 1200px) {
+  .main-workspace {
+    grid-template-columns: 380px 1fr;
+    gap: 1.25rem;
+  }
+  
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .milestone-cards-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Mobile & Tablet Portrait (<= 960px) - SWITCH TO TABBED VIEW */
+@media (max-width: 960px) {
+  .app-container {
+    padding: 0 0.85rem 5rem; /* Extra bottom padding for floating bar */
+  }
+
+  .app-header {
+    padding: 0.75rem 0;
+  }
+
+  .header-brand h1 {
+    font-size: 1.15rem;
+  }
+
+  .brand-subtitle {
+    display: none; /* Hide subtitle to save vertical space on mobile */
+  }
+
+  .main-workspace {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  /* Show Mobile Tabs & Summary Floating Bar */
+  .mobile-nav-tabs {
+    display: flex;
+  }
+
+  .mobile-summary-bar {
+    display: flex;
+  }
+
+  /* Handle Tab Activation */
+  body.tab-active-inputs .sidebar-panel {
+    display: flex;
+  }
+  body.tab-active-inputs .content-panel {
+    display: none;
+  }
+
+  body.tab-active-results .sidebar-panel {
+    display: none;
+  }
+  body.tab-active-results .content-panel {
+    display: flex;
+  }
+
+  .toast-container {
+    bottom: 5rem;
+    right: 1rem;
+    left: 1rem;
+  }
+}
+
+/* Smartphones (<= 768px) */
+@media (max-width: 768px) {
+  .header-actions {
+    gap: 0.35rem;
+  }
+
+  .header-actions .btn {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.75rem;
+  }
+
+  .chart-container {
+    height: 280px;
+  }
+
+  .kpi-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.65rem;
+  }
+
+  .kpi-card {
+    padding: 0.75rem 0.85rem;
+    gap: 0.65rem;
+  }
+
+  .kpi-icon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .kpi-icon i {
+    width: 18px;
+    height: 18px;
+  }
+
+  .kpi-val {
+    font-size: 1.05rem;
+  }
+
+  /* Milestone Carousel Scroll */
+  .milestone-scroll-hint {
+    display: flex;
+  }
+
+  .milestone-cards-grid {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    gap: 0.65rem;
+    padding-bottom: 0.5rem;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .milestone-card {
+    flex: 0 0 240px;
+    scroll-snap-align: start;
+  }
+
+  .panel-card, .section-card {
+    padding: 1rem;
+    border-radius: 12px;
+  }
+}
+
+/* Small Smartphones (<= 480px) */
+@media (max-width: 480px) {
+  .app-container {
+    padding: 0 0.5rem 5.5rem;
+  }
+
+  .header-brand {
+    gap: 0.55rem;
+  }
+
+  .brand-icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .brand-icon i {
+    width: 20px;
+    height: 20px;
+  }
+
+  .header-brand h1 {
+    font-size: 1.05rem;
+  }
+
+  .header-actions .btn .btn-text {
+    display: none; /* Icon-only buttons on small screens */
+  }
+
+  .header-actions .btn {
+    padding: 0.45rem;
+    min-width: 36px;
+    justify-content: center;
+  }
+
+  .form-grid-2 {
+    grid-template-columns: 1fr;
+    gap: 0.65rem;
+  }
+
+  .pattern-fields {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .oldnisa-years-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .kpi-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+  }
+
+  .kpi-card {
+    padding: 0.65rem 0.65rem;
+  }
+
+  .kpi-label {
+    font-size: 0.68rem;
+  }
+
+  .kpi-val {
+    font-size: 0.95rem;
+  }
+
+  .kpi-sub {
+    font-size: 0.65rem;
+  }
+
+  .chart-container {
+    height: 240px;
+  }
+
+  .withdraw-type-selector {
+    grid-template-columns: 1fr;
+  }
+
+  .range-row {
+    gap: 0.5rem;
+  }
+
+  .num-input {
+    width: 76px;
+    font-size: 0.95rem;
+  }
+}
+
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- App Header -->
+    <header class="app-header">
+      <div class="header-brand">
+        <div class="brand-icon">
+          <i data-lucide="line-chart"></i>
+        </div>
+        <div class="brand-text">
+          <div class="brand-title-row">
+            <h1>資産運用シミュレーター <span class="badge-pro">PRO</span></h1>
+          </div>
+          <p class="brand-subtitle">マルチ口座・現行退職控除・マイルストーン対応の総合ライフサイクル設計</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <!-- JSON Export / Import -->
+        <button id="btn-save-json" class="btn btn-primary" title="設定をJSONファイルとして保存">
+          <i data-lucide="download"></i>
+          <span class="btn-text">設定保存</span>
+        </button>
+        <button id="btn-load-json" class="btn btn-secondary" title="保存したJSONファイルを読み込む">
+          <i data-lucide="upload"></i>
+          <span class="btn-text">設定読込</span>
+        </button>
+        <input type="file" id="input-file-json" accept=".json" style="display: none;">
+
+        <button id="btn-export-csv" class="btn btn-outline" title="詳細データをCSV形式で出力">
+          <i data-lucide="file-spreadsheet"></i>
+          <span class="btn-text">CSV出力</span>
+        </button>
+
+        <button id="btn-theme-toggle" class="btn-icon" title="テーマ切り替え (ダーク/ライト)" aria-label="テーマ切り替え">
+          <i data-lucide="sun" id="icon-theme-light" class="hidden"></i>
+          <i data-lucide="moon" id="icon-theme-dark"></i>
+        </button>
+
+        <button id="btn-reset-zero" class="btn btn-danger-outline" title="すべての入力数値を0にリセット" aria-label="すべての入力数値を0にリセット">
+          <i data-lucide="rotate-ccw"></i>
+          <span class="btn-text">全リセット</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Mobile Navigation Switcher (Visible on mobile/tablet <= 960px) -->
+    <div class="mobile-nav-tabs" id="mobile-nav-tabs">
+      <button type="button" class="mobile-tab-btn active" id="tab-btn-inputs" data-target="inputs">
+        <i data-lucide="sliders-horizontal"></i>
+        <span>設定・入力</span>
+      </button>
+      <button type="button" class="mobile-tab-btn" id="tab-btn-results" data-target="results">
+        <i data-lucide="bar-chart-3"></i>
+        <span>シミュレーション結果</span>
+        <span class="mobile-tab-badge" id="tab-badge-peak">- 万円</span>
+      </button>
+    </div>
+
+    <!-- Main Workspace Layout -->
+    <div class="main-workspace">
+      <!-- Left Panel: Input Controls -->
+      <aside class="sidebar-panel" id="panel-inputs">
+        <form id="sim-form" onsubmit="event.preventDefault();">
+          <!-- 1. 基本設定 (現在の年齢・積立終了年齢) -->
+          <div class="panel-card">
+            <div class="card-header">
+              <span class="card-title"><i data-lucide="user"></i> 基本プロファイル</span>
+            </div>
+            <div class="form-group">
+              <div class="label-row">
+                <label for="input-current-age">現在の年齢</label>
+                <span class="val-badge"><strong id="disp-current-age">35</strong> 歳</span>
+              </div>
+              <div class="range-row">
+                <input type="range" id="range-current-age" min="0" max="90" step="1" value="35">
+                <input type="number" id="input-current-age" class="num-input" min="0" max="99" value="35" inputmode="numeric">
+              </div>
+            </div>
+            <div class="form-group" style="margin-top: 0.85rem;">
+              <div class="label-row">
+                <label for="input-end-age">積立終了年齢</label>
+                <span class="val-badge"><strong id="disp-end-age">60</strong> 歳まで</span>
+              </div>
+              <div class="range-row">
+                <input type="range" id="range-end-age" min="0" max="100" step="1" value="60">
+                <input type="number" id="input-end-age" class="num-input" min="0" max="100" value="60" inputmode="numeric">
+              </div>
+              <p class="input-hint">※全口座の積立・拠出の共通終了年齢となります。</p>
+            </div>
+          </div>
+
+          <!-- 2. 口座別設定 (5大口座) -->
+          <div class="panel-card">
+            <div class="card-header">
+              <span class="card-title"><i data-lucide="wallet"></i> 保有口座ごとの設定</span>
+              <span class="badge-sub">全口座で億円まで入力可能</span>
+            </div>
+
+            <!-- ① 特定口座 -->
+            <div class="account-box acc-taxable">
+              <div class="acc-header" data-toggle="acc-taxable-body">
+                <div class="acc-title">
+                  <span class="acc-indicator dot-taxable"></span>
+                  <span class="acc-name">特定口座 (課税)</span>
+                  <span class="acc-tag tag-taxable">取崩し優先 第1位</span>
+                </div>
+                <div class="acc-quick-sum">
+                  <span id="sum-taxable">初期 100万</span>
+                  <i data-lucide="chevron-down" class="acc-chevron"></i>
+                </div>
+              </div>
+              <div class="acc-body" id="acc-taxable-body">
+                <div class="form-group">
+                  <div class="label-row">
+                    <label for="taxable-initial">現在所有している資産額</label>
+                    <span class="val-badge"><strong id="disp-taxable-initial">100</strong> 万円</span>
+                  </div>
+                  <div class="range-row">
+                    <input type="range" id="range-taxable-initial" min="0" max="50000" step="10" value="100">
+                    <input type="number" id="taxable-initial" class="num-input" min="0" max="100000" step="1" value="100" inputmode="numeric">
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <div class="label-row">
+                    <label for="taxable-rate">想定利回り</label>
+                    <span class="val-badge"><strong id="disp-taxable-rate">5.0</strong> %/年</span>
+                  </div>
+                  <input type="number" id="taxable-rate" class="num-input w-full" min="0" max="30" step="0.1" value="5.0" inputmode="decimal">
+                </div>
+
+                <!-- 積立パターン 3パターン -->
+                <div class="patterns-wrapper">
+                  <div class="patterns-header-row">
+                    <span class="patterns-title"><i data-lucide="layers"></i> 積立パターン (最大3期間・順次計算)</span>
+                  </div>
+
+                  <!-- パターン 1 -->
+                  <div class="pattern-box">
+                    <div class="pattern-header">
+                      <span class="pattern-badge">パターン 1</span>
+                      <span id="taxable-p1-effective" class="pattern-effective-badge">実質 10年 (35〜45歳)</span>
+                    </div>
+                    <div class="pattern-fields">
+                      <div class="form-group">
+                        <label for="taxable-p1-years" class="pattern-sublabel">積立期間</label>
+                        <div class="input-unit-group">
+                          <input type="number" id="taxable-p1-years" class="num-input w-full" min="0" max="100" step="1" value="10" inputmode="numeric">
+                          <span class="unit-label">年間</span>
+                        </div>
+                      </div>
+                      <div class="form-group">
+                        <label for="taxable-p1-monthly" class="pattern-sublabel">毎月の積立額</label>
+                        <div class="input-unit-group">
+                          <input type="number" id="taxable-p1-monthly" class="num-input w-full" min="0" max="500" step="0.1" value="2.0" inputmode="decimal">
+                          <span class="unit-label">万円/月</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- パターン 2 -->
+                  <div class="pattern-box">
+                    <div class="pattern-header">
+                      <span class="pattern-badge">パターン 2</span>
+                      <span id="taxable-p2-effective" class="pattern-effective-badge">実質 10年 (45〜55歳)</span>
+                    </div>
+                    <div class="pattern-fields">
+                      <div class="form-group">
+                        <label for="taxable-p2-years" class="pattern-sublabel">積立期間</label>
+                        <div class="input-unit-group">
+                          <input type="number" id="taxable-p2-years" class="num-input w-full" min="0" max="100" step="1" value="10" inputmode="numeric">
+                          <span class="unit-label">年間</span>
+                        </div>
+                      </div>
+                      <div class="form-group">
+                        <label for="taxable-p2-monthly" class="pattern-sublabel">毎月の積立額</label>
+                        <div class="input-unit-group">
+                          <input type="number" id="taxable-p2-monthly" class="num-input w-full" min="0" max="500" step="0.1" value="0.0" inputmode="decimal">
+                          <span class="unit-label">万円/月</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- パターン 3 -->
+                  <div class="pattern-box">
+                    <div class="pattern-header">
+                      <span class="pattern-badge">パターン 3</span>
+                      <span id="taxable-p3-effective" class="pattern-effective-badge">実質 5年 (55〜60歳)</span>
+                    </div>
+                    <div class="pattern-fields">
+                      <div class="form-group">
+                        <label for="taxable-p3-years" class="pattern-sublabel">積立期間</label>
+                        <div class="input-unit-group">
+                          <input type="number" id="taxable-p3-years" class="num-input w-full" min="0" max="100" step="1" value="5" inputmode="numeric">
+                          <span class="unit-label">年間</span>
+                        </div>
+                      </div>
+                      <div class="form-group">
+                        <label for="taxable-p3-monthly" class="pattern-sublabel">毎月の積立額</label>
+                        <div class="input-unit-group">
+                          <input type="number" id="taxable-p3-monthly" class="num-input w-full" min="0" max="500" step="0.1" value="0.0" inputmode="decimal">
+                          <span class="unit-label">万円/月</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <p class="input-hint">※運用益・売却益に20.315%課税。DC退職金手取り金および旧NISA満了資金の受入先となります。</p>
+              </div>
+            </div>
+
+            <!-- ② 旧NISA口座 -->
+            <div class="account-box acc-oldnisa">
+              <div class="acc-header" data-toggle="acc-oldnisa-body">
+                <div class="acc-title">
+                  <span class="acc-indicator dot-oldnisa"></span>
+                  <span class="acc-name">旧NISA口座</span>
+                  <span class="acc-tag tag-oldnisa">20年満了で特定口座へ順次移管</span>
+                </div>
+                <div class="acc-quick-sum">
+                  <span id="sum-oldnisa">合計 240万 (2018〜2023年)</span>
+                  <i data-lucide="chevron-down" class="acc-chevron"></i>
+                </div>
+              </div>
+              <div class="acc-body" id="acc-oldnisa-body">
+                <!-- 基本設定 (利回り & 基準西暦) -->
+                <div class="form-grid-2">
+                  <div class="form-group">
+                    <div class="label-row">
+                      <label for="oldnisa-rate">想定利回り</label>
+                      <span class="val-badge"><strong id="disp-oldnisa-rate">5.0</strong> %/年</span>
+                    </div>
+                    <input type="number" id="oldnisa-rate" class="num-input w-full" min="0" max="30" step="0.1" value="5.0" inputmode="decimal">
+                  </div>
+                  <div class="form-group">
+                    <div class="label-row">
+                      <label for="oldnisa-base-year">シミュレーション基準年 (現在)</label>
+                      <span class="val-badge"><strong id="disp-oldnisa-base-year">2024</strong> 年</span>
+                    </div>
+                    <input type="number" id="oldnisa-base-year" class="num-input w-full" min="2018" max="2050" step="1" value="2024" inputmode="numeric">
+                  </div>
+                </div>
+
+                <!-- 合計評価額表示バナー -->
+                <div class="oldnisa-summary-banner">
+                  <div class="oldnisa-summary-left">
+                    <span class="oldnisa-summary-label">旧NISA 現時点合計評価額</span>
+                    <div class="oldnisa-summary-val"><strong id="disp-oldnisa-total">240</strong> <span>万円</span></div>
+                  </div>
+                  <button type="button" id="btn-oldnisa-distribute" class="btn btn-xs btn-outline" title="合計金額を入力して6年分に均等配分">
+                    <i data-lucide="split"></i> 均等配分
+                  </button>
+                </div>
+
+                <!-- 買付年度別設定グリッド (2018〜2023年) -->
+                <div class="oldnisa-years-container">
+                  <div class="oldnisa-years-title">
+                    <i data-lucide="calendar"></i> 買付年度別の現時点評価額 (20年保有後に特定口座へ順次移管)
+                  </div>
+                  <div class="oldnisa-years-grid">
+                    <!-- 2018年 -->
+                    <div class="oldnisa-year-card">
+                      <div class="oldnisa-year-header">
+                        <span class="oldnisa-year-title">2018年 買付分</span>
+                        <span id="badge-oldnisa-trans-2018" class="oldnisa-transfer-badge">2038年移管</span>
+                      </div>
+                      <div class="input-unit-group">
+                        <input type="number" id="oldnisa-val-2018" class="num-input" min="0" max="100000" step="1" value="40" inputmode="numeric">
+                        <span class="unit-label">万円</span>
+                      </div>
+                    </div>
+
+                    <!-- 2019年 -->
+                    <div class="oldnisa-year-card">
+                      <div class="oldnisa-year-header">
+                        <span class="oldnisa-year-title">2019年 買付分</span>
+                        <span id="badge-oldnisa-trans-2019" class="oldnisa-transfer-badge">2039年移管</span>
+                      </div>
+                      <div class="input-unit-group">
+                        <input type="number" id="oldnisa-val-2019" class="num-input" min="0" max="100000" step="1" value="40" inputmode="numeric">
+                        <span class="unit-label">万円</span>
+                      </div>
+                    </div>
+
+                    <!-- 2020年 -->
+                    <div class="oldnisa-year-card">
+                      <div class="oldnisa-year-header">
+                        <span class="oldnisa-year-title">2020年 買付分</span>
+                        <span id="badge-oldnisa-trans-2020" class="oldnisa-transfer-badge">2040年移管</span>
+                      </div>
+                      <div class="input-unit-group">
+                        <input type="number" id="oldnisa-val-2020" class="num-input" min="0" max="100000" step="1" value="40" inputmode="numeric">
+                        <span class="unit-label">万円</span>
+                      </div>
+                    </div>
+
+                    <!-- 2021年 -->
+                    <div class="oldnisa-year-card">
+                      <div class="oldnisa-year-header">
+                        <span class="oldnisa-year-title">2021年 買付分</span>
+                        <span id="badge-oldnisa-trans-2021" class="oldnisa-transfer-badge">2041年移管</span>
+                      </div>
+                      <div class="input-unit-group">
+                        <input type="number" id="oldnisa-val-2021" class="num-input" min="0" max="100000" step="1" value="40" inputmode="numeric">
+                        <span class="unit-label">万円</span>
+                      </div>
+                    </div>
+
+                    <!-- 2022年 -->
+                    <div class="oldnisa-year-card">
+                      <div class="oldnisa-year-header">
+                        <span class="oldnisa-year-title">2022年 買付分</span>
+                        <span id="badge-oldnisa-trans-2022" class="oldnisa-transfer-badge">2042年移管</span>
+                      </div>
+                      <div class="input-unit-group">
+                        <input type="number" id="oldnisa-val-2022" class="num-input" min="0" max="100000" step="1" value="40" inputmode="numeric">
+                        <span class="unit-label">万円</span>
+                      </div>
+                    </div>
+
+                    <!-- 2023年 -->
+                    <div class="oldnisa-year-card">
+                      <div class="oldnisa-year-header">
+                        <span class="oldnisa-year-title">2023年 買付分</span>
+                        <span id="badge-oldnisa-trans-2023" class="oldnisa-transfer-badge">2043年移管</span>
+                      </div>
+                      <div class="input-unit-group">
+                        <input type="number" id="oldnisa-val-2023" class="num-input" min="0" max="100000" step="1" value="40" inputmode="numeric">
+                        <span class="unit-label">万円</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <p class="input-hint">※各年度の投資枠は20年間非課税運用され、21年目（2018年分→2038年、2023年分→2043年）に時価のまま<strong>特定口座へ順次非課税移管</strong>されます。</p>
+              </div>
+            </div>
+
+            <!-- ③ 新NISA口座 -->
+            <div class="account-box acc-newnisa">
+              <div class="acc-header" data-toggle="acc-newnisa-body">
+                <div class="acc-title">
+                  <span class="acc-indicator dot-newnisa"></span>
+                  <span class="acc-name">新NISA口座</span>
+                  <span class="acc-tag tag-newnisa">無期限非課税 (1,800万枠)</span>
+                </div>
+                <div class="acc-quick-sum">
+                  <span id="sum-newnisa">初期 300万</span>
+                  <i data-lucide="chevron-down" class="acc-chevron"></i>
+                </div>
+              </div>
+              <div class="acc-body" id="acc-newnisa-body">
+                <div class="form-group">
+                  <div class="label-row">
+                    <label for="newnisa-initial">現在所有している資産額</label>
+                    <span class="val-badge"><strong id="disp-newnisa-initial">300</strong> 万円</span>
+                  </div>
+                  <div class="range-row">
+                    <input type="range" id="range-newnisa-initial" min="0" max="50000" step="10" value="300">
+                    <input type="number" id="newnisa-initial" class="num-input" min="0" max="100000" step="1" value="300" inputmode="numeric">
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <div class="label-row">
+                    <label for="newnisa-rate">想定利回り</label>
+                    <span class="val-badge"><strong id="disp-newnisa-rate">5.0</strong> %/年</span>
+                  </div>
+                  <input type="number" id="newnisa-rate" class="num-input w-full" min="0" max="30" step="0.1" value="5.0" inputmode="decimal">
+                </div>
+
+                <!-- 積立パターン 3パターン -->
+                <div class="patterns-wrapper">
+                  <div class="patterns-header-row">
+                    <span class="patterns-title"><i data-lucide="layers"></i> 積立パターン (最大3期間・順次計算)</span>
+                  </div>
+
+                  <!-- パターン 1 -->
+                  <div class="pattern-box">
+                    <div class="pattern-header">
+                      <span class="pattern-badge">パターン 1</span>
+                      <span id="newnisa-p1-effective" class="pattern-effective-badge">実質 10年 (35〜45歳)</span>
+                    </div>
+                    <div class="pattern-fields">
+                      <div class="form-group">
+                        <label for="newnisa-p1-years" class="pattern-sublabel">積立期間</label>
+                        <div class="input-unit-group">
+                          <input type="number" id="newnisa-p1-years" class="num-input w-full" min="0" max="100" step="1" value="10" inputmode="numeric">
+                          <span class="unit-label">年間</span>
+                        </div>
+                      </div>
+                      <div class="form-group">
+                        <label for="newnisa-p1-monthly" class="pattern-sublabel">毎月の積立額</label>
+                        <div class="input-unit-group">
+                          <input type="number" id="newnisa-p1-monthly" class="num-input w-full" min="0" max="500" step="0.1" value="5.0" inputmode="decimal">
+                          <span class="unit-label">万円/月</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- パターン 2 -->
+                  <div class="pattern-box">
+                    <div class="pattern-header">
+                      <span class="pattern-badge">パターン 2</span>
+                      <span id="newnisa-p2-effective" class="pattern-effective-badge">実質 10年 (45〜55歳)</span>
+                    </div>
+                    <div class="pattern-fields">
+                      <div class="form-group">
+                        <label for="newnisa-p2-years" class="pattern-sublabel">積立期間</label>
+                        <div class="input-unit-group">
+                          <input type="number" id="newnisa-p2-years" class="num-input w-full" min="0" max="100" step="1" value="10" inputmode="numeric">
+                          <span class="unit-label">年間</span>
+                        </div>
+                      </div>
+                      <div class="form-group">
+                        <label for="newnisa-p2-monthly" class="pattern-sublabel">毎月の積立額</label>
+                        <div class="input-unit-group">
+                          <input type="number" id="newnisa-p2-monthly" class="num-input w-full" min="0" max="500" step="0.1" value="0.0" inputmode="decimal">
+                          <span class="unit-label">万円/月</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- パターン 3 -->
+                  <div class="pattern-box">
+                    <div class="pattern-header">
+                      <span class="pattern-badge">パターン 3</span>
+                      <span id="newnisa-p3-effective" class="pattern-effective-badge">実質 5年 (55〜60歳)</span>
+                    </div>
+                    <div class="pattern-fields">
+                      <div class="form-group">
+                        <label for="newnisa-p3-years" class="pattern-sublabel">積立期間</label>
+                        <div class="input-unit-group">
+                          <input type="number" id="newnisa-p3-years" class="num-input w-full" min="0" max="100" step="1" value="5" inputmode="numeric">
+                          <span class="unit-label">年間</span>
+                        </div>
+                      </div>
+                      <div class="form-group">
+                        <label for="newnisa-p3-monthly" class="pattern-sublabel">毎月の積立額</label>
+                        <div class="input-unit-group">
+                          <input type="number" id="newnisa-p3-monthly" class="num-input w-full" min="0" max="500" step="0.1" value="0.0" inputmode="decimal">
+                          <span class="unit-label">万円/月</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 枠上限プログレス -->
+                <div class="nisa-progress-box">
+                  <div class="nisa-progress-labels">
+                    <span>生涯投資枠 (上限1,800万円)</span>
+                    <span id="nisa-limit-fill-info">300万 / 1,800万</span>
+                  </div>
+                  <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" id="nisa-limit-fill" style="width: 16.6%;"></div>
+                  </div>
+                </div>
+                <p class="input-hint">※元本累計が1,800万円に達すると積立は自動停止し、非課税運用のまま継続されます。</p>
+              </div>
+            </div>
+
+            <!-- ④ 確定拠出年金 (DC/iDeCo) -->
+            <div class="account-box acc-dc">
+              <div class="acc-header" data-toggle="acc-dc-body">
+                <div class="acc-title">
+                  <span class="acc-indicator dot-dc"></span>
+                  <span class="acc-name">確定拠出年金 (DC / iDeCo)</span>
+                  <span class="acc-tag tag-dc">現行退職所得控除</span>
+                </div>
+                <div class="acc-quick-sum">
+                  <span id="sum-dc">初期 150万 / 拠出 2.3万</span>
+                  <i data-lucide="chevron-down" class="acc-chevron"></i>
+                </div>
+              </div>
+              <div class="acc-body" id="acc-dc-body">
+                <div class="form-group">
+                  <div class="label-row">
+                    <label for="dc-initial">現在所有している資産額</label>
+                    <span class="val-badge"><strong id="disp-dc-initial">150</strong> 万円</span>
+                  </div>
+                  <div class="range-row">
+                    <input type="range" id="range-dc-initial" min="0" max="50000" step="10" value="150">
+                    <input type="number" id="dc-initial" class="num-input" min="0" max="100000" step="1" value="150" inputmode="numeric">
+                  </div>
+                </div>
+                <div class="form-grid-2">
+                  <div class="form-group">
+                    <div class="label-row">
+                      <label for="dc-monthly">毎月の拠出額</label>
+                      <span class="val-badge"><strong id="disp-dc-monthly">2.3</strong> 万円/月</span>
+                    </div>
+                    <input type="number" id="dc-monthly" class="num-input w-full" min="0" max="20" step="0.1" value="2.3" inputmode="decimal">
+                  </div>
+                  <div class="form-group">
+                    <div class="label-row">
+                      <label for="dc-rate">想定利回り</label>
+                      <span class="val-badge"><strong id="disp-dc-rate">4.5</strong> %/年</span>
+                    </div>
+                    <input type="number" id="dc-rate" class="num-input w-full" min="0" max="30" step="0.1" value="4.5" inputmode="decimal">
+                  </div>
+                </div>
+                <div class="form-grid-2">
+                  <div class="form-group">
+                    <div class="label-row">
+                      <label for="dc-receive-age">退職金受取年齢</label>
+                      <span class="val-badge"><strong id="disp-dc-receive-age">60</strong> 歳受取</span>
+                    </div>
+                    <input type="number" id="dc-receive-age" class="num-input w-full" min="0" max="75" value="60" inputmode="numeric">
+                  </div>
+                  <div class="form-group">
+                    <div class="label-row">
+                      <label for="dc-years-past">これまでの拠出年数 (勤続年数)</label>
+                      <span class="val-badge"><strong id="disp-dc-years-past">5</strong> 年済</span>
+                    </div>
+                    <input type="number" id="dc-years-past" class="num-input w-full" min="0" max="50" value="5" inputmode="numeric">
+                  </div>
+                </div>
+                <!-- 退職控除計算プレビュー -->
+                <div class="dc-calc-preview" id="dc-calc-preview-box">
+                  <div class="preview-title"><i data-lucide="calculator"></i> 退職控除・移管シミュレーション</div>
+                  <div class="preview-grid">
+                    <div>受取時総残高: <strong id="preview-dc-total">-</strong> 万円</div>
+                    <div>拠出年数: <strong id="preview-dc-years">-</strong> 年</div>
+                    <div>退職所得控除: <strong id="preview-dc-deduction">-</strong> 万円</div>
+                    <div>所得税・住民税計: <strong id="preview-dc-tax" class="text-danger">-</strong> 万円</div>
+                    <div class="col-span-2 highlight-transfer">特定口座への移管手取り額: <strong id="preview-dc-net" class="text-success">-</strong> 万円</div>
+                  </div>
+                </div>
+                <p class="input-hint">※拠出は基本プロファイルの積立終了年齢まで継続されます。現行の退職所得控除制（20年以下:40万/年、20年超:800万+70万/年、課税1/2）で税額を算出し、<strong>手取り額が特定口座へ移管</strong>されます。</p>
+              </div>
+            </div>
+
+            <!-- ⑤ 株式現物口座 -->
+            <div class="account-box acc-stock">
+              <div class="acc-header" data-toggle="acc-stock-body">
+                <div class="acc-title">
+                  <span class="acc-indicator dot-stock"></span>
+                  <span class="acc-name">株式現物口座</span>
+                  <span class="acc-tag tag-stock">原則取崩し対象外</span>
+                </div>
+                <div class="acc-quick-sum">
+                  <span id="sum-stock">初期 200万</span>
+                  <i data-lucide="chevron-down" class="acc-chevron"></i>
+                </div>
+              </div>
+              <div class="acc-body" id="acc-stock-body">
+                <div class="form-group">
+                  <div class="label-row">
+                    <label for="stock-initial">現在所有している資産額</label>
+                    <span class="val-badge"><strong id="disp-stock-initial">200</strong> 万円</span>
+                  </div>
+                  <div class="range-row">
+                    <input type="range" id="range-stock-initial" min="0" max="50000" step="10" value="200">
+                    <input type="number" id="stock-initial" class="num-input" min="0" max="100000" step="1" value="200" inputmode="numeric">
+                  </div>
+                </div>
+                <div class="form-grid-2">
+                  <div class="form-group">
+                    <div class="label-row">
+                      <label for="stock-monthly">毎月の買増額</label>
+                      <span class="val-badge"><strong id="disp-stock-monthly">0.0</strong> 万円/月</span>
+                    </div>
+                    <input type="number" id="stock-monthly" class="num-input w-full" min="0" max="100" step="0.5" value="0.0" inputmode="decimal">
+                  </div>
+                  <div class="form-group">
+                    <div class="label-row">
+                      <label for="stock-rate">想定利回り (配当+値上)</label>
+                      <span class="val-badge"><strong id="disp-stock-rate">4.0</strong> %/年</span>
+                    </div>
+                    <input type="number" id="stock-rate" class="num-input w-full" min="0" max="30" step="0.1" value="4.0" inputmode="decimal">
+                  </div>
+                </div>
+                <p class="input-hint">※株式現物口座は<strong>原則取り崩し対象外</strong>です。総資産やマイルストーンには計上されますが、生活費取り崩しで売却されず温存されます。</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. 国の年金 (公的年金) -->
+          <div class="panel-card">
+            <div class="card-header">
+              <span class="card-title"><i data-lucide="landmark"></i> 国の年金 (公的年金)</span>
+            </div>
+            <div class="form-grid-2">
+              <div class="form-group">
+                <div class="label-row">
+                  <label for="pension-start-age">受給開始年齢</label>
+                  <span class="val-badge"><strong id="disp-pension-start-age">65</strong> 歳</span>
+                </div>
+                <input type="number" id="pension-start-age" class="num-input w-full" min="0" max="100" value="65" inputmode="numeric">
+              </div>
+              <div class="form-group">
+                <div class="label-row">
+                  <label for="pension-monthly">受給額 (月額換算)</label>
+                  <span class="val-badge"><strong id="disp-pension-monthly">15.0</strong> 万円/月</span>
+                </div>
+                <input type="number" id="pension-monthly" class="num-input w-full" min="0" max="100" step="0.5" value="15.0" inputmode="decimal">
+              </div>
+            </div>
+            <p class="input-hint">※年額 <span id="disp-pension-annual">180</span> 万円が受給開始年齢から100歳までキャッシュインされます。</p>
+          </div>
+
+          <!-- 4. 取り崩し設定 (FIRE・老後生活費) -->
+          <div class="panel-card">
+            <div class="card-header">
+              <span class="card-title"><i data-lucide="hand-coins"></i> 資産の取り崩し設定</span>
+              <span class="badge-priority">特定口座 → 旧NISA → 新NISA順</span>
+            </div>
+            
+            <div class="form-group">
+              <div class="label-row">
+                <label for="withdraw-start-age">取り崩し開始年齢</label>
+                <span class="val-badge"><strong id="disp-withdraw-start-age">65</strong> 歳</span>
+              </div>
+              <div class="range-row">
+                <input type="range" id="range-withdraw-start-age" min="0" max="90" step="1" value="65">
+                <input type="number" id="withdraw-start-age" class="num-input" min="0" max="100" value="65" inputmode="numeric">
+              </div>
+            </div>
+
+            <!-- 取り崩し方式ラジオ -->
+            <div class="withdraw-type-selector">
+              <label class="radio-card">
+                <input type="radio" name="withdraw-type" value="fixed-amount" checked>
+                <div class="radio-content">
+                  <span class="radio-title"><i data-lucide="banknote"></i> 定額取り崩し</span>
+                  <span class="radio-desc">毎月/年間の指定額を取り崩す</span>
+                </div>
+              </label>
+              <label class="radio-card">
+                <input type="radio" name="withdraw-type" value="fixed-rate">
+                <div class="radio-content">
+                  <span class="radio-title"><i data-lucide="percent"></i> 定率取り崩し</span>
+                  <span class="radio-desc">資産残高の一定割合(%)を取崩</span>
+                </div>
+              </label>
+            </div>
+
+            <!-- 定額取り崩しの場合の入力 -->
+            <div id="box-withdraw-amount" class="form-group">
+              <div class="label-row">
+                <label for="withdraw-monthly">毎月の取り崩し希望額</label>
+                <span class="val-badge"><strong id="disp-withdraw-monthly">20.0</strong> 万円/月</span>
+              </div>
+              <div class="range-row">
+                <input type="range" id="range-withdraw-monthly" min="0" max="100" step="0.5" value="20.0">
+                <input type="number" id="withdraw-monthly" class="num-input" min="0" max="500" step="0.5" value="20.0" inputmode="decimal">
+              </div>
+              <p class="input-hint">※年間取り崩し額: <span id="disp-withdraw-annual">240</span> 万円</p>
+            </div>
+
+            <!-- 定率取り崩しの場合の入力 -->
+            <div id="box-withdraw-rate" class="form-group hidden">
+              <div class="label-row">
+                <label for="withdraw-rate">年間取り崩し率</label>
+                <span class="val-badge"><strong id="disp-withdraw-rate">4.0</strong> %/年</span>
+              </div>
+              <div class="range-row">
+                <input type="range" id="range-withdraw-rate" min="0" max="15.0" step="0.1" value="4.0">
+                <input type="number" id="withdraw-rate" class="num-input" min="0" max="30" step="0.1" value="4.0" inputmode="decimal">
+              </div>
+              <p class="input-hint">※4%ルール等の定率取崩し。前年末の対象口座総残高に適用されます。</p>
+            </div>
+
+            <p class="input-hint alert-hint">
+              <i data-lucide="info"></i> <strong>取崩し順序</strong>: 原則課税される「特定口座」から取り崩し、特定口座が枯渇した後に「旧NISA」→「新NISA」の順で取り崩します（株式現物は除外）。
+            </p>
+          </div>
+        </form>
+      </aside>
+
+      <!-- Right Panel: Simulation Output & Analytics -->
+      <main class="content-panel" id="panel-results">
+        <!-- Top KPI Cards -->
+        <section class="kpi-grid">
+          <div class="kpi-card card-peak">
+            <div class="kpi-icon"><i data-lucide="trending-up"></i></div>
+            <div class="kpi-content">
+              <span class="kpi-label">資産ピーク時 (総資産)</span>
+              <div class="kpi-val"><strong id="kpi-peak-assets">-</strong> 万円</div>
+              <span class="kpi-sub" id="kpi-peak-age">- 歳到達時</span>
+            </div>
+          </div>
+
+          <div class="kpi-card card-end">
+            <div class="kpi-icon"><i data-lucide="flag"></i></div>
+            <div class="kpi-content">
+              <span class="kpi-label">100歳時点の最終残高</span>
+              <div class="kpi-val"><strong id="kpi-100-assets">-</strong> 万円</div>
+              <span class="kpi-sub" id="kpi-100-status">資産維持</span>
+            </div>
+          </div>
+
+          <div class="kpi-card card-dc">
+            <div class="kpi-icon"><i data-lucide="gift"></i></div>
+            <div class="kpi-content">
+              <span class="kpi-label">DC退職金手取り移管額</span>
+              <div class="kpi-val"><strong id="kpi-dc-net">-</strong> 万円</div>
+              <span class="kpi-sub" id="kpi-dc-tax-saved">控除税額: - 万円</span>
+            </div>
+          </div>
+
+          <div class="kpi-card card-pension">
+            <div class="kpi-icon"><i data-lucide="coins"></i></div>
+            <div class="kpi-content">
+              <span class="kpi-label">生涯公的年金受給総額</span>
+              <div class="kpi-val"><strong id="kpi-pension-total">-</strong> 万円</div>
+              <span class="kpi-sub" id="kpi-pension-span">65歳〜100歳</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Chart Section -->
+        <section class="section-card chart-section">
+          <div class="section-header">
+            <div class="section-title-group">
+              <h2><i data-lucide="area-chart"></i> 資産推移シミュレーション</h2>
+              <span class="section-badge">100歳までの全口座推移</span>
+            </div>
+            <div class="chart-controls">
+              <div class="btn-group">
+                <button type="button" class="btn-toggle active" data-chart="stacked">積み上げ</button>
+                <button type="button" class="btn-toggle" data-chart="cashflow">収支・取崩</button>
+                <button type="button" class="btn-toggle" data-chart="lines">推移線</button>
+              </div>
+            </div>
+          </div>
+          
+          <div class="chart-container">
+            <canvas id="mainChart"></canvas>
+          </div>
+
+          <!-- Chart Legend Pills -->
+          <div class="chart-legend-custom">
+            <span class="legend-pill" style="--c: var(--col-taxable);"><span class="dot"></span>特定口座 (課税)</span>
+            <span class="legend-pill" style="--c: var(--col-oldnisa);"><span class="dot"></span>旧NISA (移管前)</span>
+            <span class="legend-pill" style="--c: var(--col-newnisa);"><span class="dot"></span>新NISA (非課税)</span>
+            <span class="legend-pill" style="--c: var(--col-dc);"><span class="dot"></span>確定拠出年金 (DC)</span>
+            <span class="legend-pill" style="--c: var(--col-stock);"><span class="dot"></span>株式現物 (温存)</span>
+          </div>
+        </section>
+
+        <!-- ★ マイルストーン セクション (60歳〜100歳 10歳刻み) -->
+        <section class="section-card milestone-section">
+          <div class="section-header">
+            <div class="section-title-group">
+              <h2><i data-lucide="milestone"></i> 年齢別マイルストーン</h2>
+              <span class="section-badge badge-accent">60歳〜100歳</span>
+            </div>
+            <div class="milestone-scroll-hint">
+              <i data-lucide="move-horizontal"></i> <span>左右スワイプで比較</span>
+            </div>
+          </div>
+
+          <!-- マイルストーンカード一覧 (横スクロールスナップカルーセル / グリッド) -->
+          <div class="milestone-cards-grid" id="milestone-cards-container">
+            <!-- Dynamic Injection via JavaScript -->
+          </div>
+
+          <!-- マイルストーン一覧テーブル -->
+          <div class="table-responsive milestone-table-box">
+            <table class="data-table milestone-table">
+              <thead>
+                <tr>
+                  <th>マイルストーン</th>
+                  <th>総資産額</th>
+                  <th>特定口座</th>
+                  <th>旧NISA</th>
+                  <th>新NISA</th>
+                  <th>確定拠出年金</th>
+                  <th>株式現物</th>
+                  <th>公的年金 (年額)</th>
+                  <th>取り崩し額 (年額)</th>
+                  <th>判定</th>
+                </tr>
+              </thead>
+              <tbody id="milestone-table-body">
+                <!-- Dynamic Rows -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- 全年齢年次詳細データテーブル -->
+        <section class="section-card detail-table-section">
+          <div class="section-header cursor-pointer" id="btn-toggle-detail-table">
+            <div class="section-title-group">
+              <h2><i data-lucide="table"></i> 全年齢 年次資産明細一覧</h2>
+              <span class="section-badge" id="badge-table-rows">35歳〜100歳</span>
+            </div>
+            <div class="header-action-toggle">
+              <span class="toggle-text">開閉</span>
+              <i data-lucide="chevron-down" id="icon-detail-table"></i>
+            </div>
+          </div>
+
+          <div class="detail-table-collapse collapsed" id="box-detail-table">
+            <div class="table-toolbar">
+              <p class="table-desc">※各年度の拠出、運用益、年金受給、DC移管、口座別取り崩し、期末残高の明細です。</p>
+              <button type="button" class="btn btn-sm btn-outline" id="btn-table-download-csv">
+                <i data-lucide="download"></i> <span class="btn-text">CSV出力</span>
+              </button>
+            </div>
+            <div class="table-responsive">
+              <table class="data-table full-detail-table">
+                <thead>
+                  <tr>
+                    <th>年齢</th>
+                    <th>経過年</th>
+                    <th>総資産額</th>
+                    <th>年間積立計</th>
+                    <th>年間運用益</th>
+                    <th>公的年金</th>
+                    <th>DC受取/移管</th>
+                    <th>特定口座残高</th>
+                    <th>旧NISA残高</th>
+                    <th>新NISA残高</th>
+                    <th>DC残高</th>
+                    <th>株式現物残高</th>
+                    <th>年間取崩し額</th>
+                  </tr>
+                </thead>
+                <tbody id="full-detail-table-body">
+                  <!-- Dynamic Rows -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- Mobile Quick Summary Bottom Bar (Floating Bar on Mobile) -->
+    <div class="mobile-summary-bar" id="mobile-summary-bar">
+      <div class="summary-bar-content">
+        <div class="summary-stat-item">
+          <span class="summary-stat-label">資産ピーク時</span>
+          <span class="summary-stat-val" id="summary-bar-peak">- 万円</span>
+        </div>
+        <div class="summary-stat-divider"></div>
+        <div class="summary-stat-item">
+          <span class="summary-stat-label">100歳残高</span>
+          <span class="summary-stat-val" id="summary-bar-end">- 万円</span>
+        </div>
+      </div>
+      <button type="button" class="btn btn-primary btn-sm btn-summary-jump" id="btn-summary-jump-results">
+        <i data-lucide="trending-up"></i>
+        <span>結果を見る</span>
+      </button>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="toast-container"></div>
+  </div>
+
+  <!-- App Logic -->
+  <script id="inline-app">
+/**
+ * マルチ口座 資産運用シミュレーター PRO (Wealth Simulator Pro)
+ * Core Logic & Simulation Engine
+ */
+
+// ============================================================================
+// State Management
+// ============================================================================
+const DEFAULT_STATE = {
+  currentAge: 35,
+  endAge: 60, // 基本プロファイルに集約された積立終了年齢
+  accounts: {
+    taxable: {
+      initial: 100, // 万円 (億円まで入力可能)
+      rate: 5.0,    // %/年
+      patterns: [
+        { years: 10, monthly: 2.0 },
+        { years: 10, monthly: 0.0 },
+        { years: 5,  monthly: 0.0 }
+      ]
+    },
+    oldNisa: {
+      baseYear: 2024,    // シミュレーション基準西暦年 (現在)
+      rate: 5.0,         // %/年
+      years: {
+        2018: 40,        // 2018年買付分 (2038年特定移管)
+        2019: 40,        // 2019年買付分 (2039年特定移管)
+        2020: 40,        // 2020年買付分 (2040年特定移管)
+        2021: 40,        // 2021年買付分 (2041年特定移管)
+        2022: 40,        // 2022年買付分 (2042年特定移管)
+        2023: 40         // 2023年買付分 (2043年特定移管)
+      }
+    },
+    newNisa: {
+      initial: 300,      // 万円
+      rate: 5.0,         // %/年
+      patterns: [
+        { years: 10, monthly: 5.0 },
+        { years: 10, monthly: 0.0 },
+        { years: 5,  monthly: 0.0 }
+      ]
+    },
+    dc: {
+      initial: 150,      // 万円
+      monthly: 2.3,      // 万円/月
+      rate: 4.5,         // %/年
+      receiveAge: 60,    // 歳で退職金受取
+      yearsPast: 5       // これまでの拠出年数
+    },
+    stock: {
+      initial: 200,      // 万円
+      monthly: 0.0,      // 万円/月
+      rate: 4.0          // %/年 (原則取崩し対象外)
+    }
+  },
+  pension: {
+    startAge: 65,        // 歳から受給開始
+    monthly: 15.0        // 万円/月
+  },
+  withdraw: {
+    startAge: 65,        // 歳から取崩し開始
+    type: 'fixed-amount', // 'fixed-amount' | 'fixed-rate'
+    monthly: 20.0,       // 万円/月 (定額取崩し時)
+    rate: 4.0            // %/年 (定率取崩し時)
+  },
+  chartType: 'stacked',  // 'stacked' | 'cashflow' | 'lines'
+  theme: 'dark',
+  detailTableOpen: false
+};
+
+// Application State Object (Cloned from Default)
+let state = JSON.parse(JSON.stringify(DEFAULT_STATE));
+
+// ============================================================================
+// Financial Calculations (現行退職所得控除 & シミュレーション)
+// ============================================================================
+const NISA_LIFETIME_LIMIT = 1800; // 万円
+const CAPITAL_GAINS_TAX = 0.20315; // 20.315% (特定口座運用益・譲渡益税)
+
+/**
+ * 3パターンの順次実質計算対象期間を算出
+ * @param {number} currentAge - 現在の年齢
+ * @param {number} endAge - 積立終了年齢
+ * @param {Array} patterns - [{ years: number, monthly: number }, ...]
+ * @returns {Array} - [{ reqYears, effYears, startAge, endAge, monthly, isCapped, isZero }, ...]
+ */
+function calcEffectivePatterns(currentAge, endAge, patterns) {
+  const result = [];
+  let cursorAge = currentAge;
+
+  (patterns || []).forEach((p, idx) => {
+    const reqYears = Math.max(0, parseInt(p.years, 10) || 0);
+    const monthly = Math.max(0, parseFloat(p.monthly) || 0);
+    const availYears = Math.max(0, endAge - cursorAge);
+    const effYears = Math.min(reqYears, availYears);
+    const startAge = cursorAge;
+    const patternEndAge = cursorAge + effYears;
+
+    result.push({
+      index: idx,
+      reqYears,
+      effYears,
+      startAge,
+      endAge: patternEndAge,
+      monthly,
+      isCapped: reqYears > effYears && effYears > 0,
+      isZero: effYears === 0
+    });
+
+    cursorAge += effYears;
+  });
+
+  return result;
+}
+
+/**
+ * 現行の退職所得控除 & 退職所得課税計算
+ * @param {number} grossAmount - DC受取総額 (万円)
+ * @param {number} totalYears - 勤続・拠出年数 (年)
+ */
+function calcRetirementTax(grossAmount, totalYears) {
+  const years = Math.max(1, Math.ceil(totalYears));
+  let deduction = 0; // 万円
+
+  // 1. 退職所得控除額
+  if (years <= 20) {
+    deduction = Math.max(80, 40 * years);
+  } else {
+    deduction = 800 + 70 * (years - 20);
+  }
+
+  // 2. 課税退職所得金額 (1,000円未満切り捨て、0以下は0)
+  const taxableIncomeYen = Math.max(0, Math.floor(((grossAmount - deduction) * 10000 * 0.5) / 1000) * 1000);
+  const taxableIncomeMan = taxableIncomeYen / 10000;
+
+  if (taxableIncomeYen <= 0) {
+    return {
+      grossAmount,
+      years,
+      deduction,
+      taxableIncome: 0,
+      totalTax: 0,
+      netAmount: grossAmount
+    };
+  }
+
+  // 3. 所得税の速算表 (円単位)
+  let baseIncomeTaxYen = 0;
+  if (taxableIncomeYen <= 1950000) {
+    baseIncomeTaxYen = taxableIncomeYen * 0.05;
+  } else if (taxableIncomeYen <= 3300000) {
+    baseIncomeTaxYen = taxableIncomeYen * 0.10 - 97500;
+  } else if (taxableIncomeYen <= 6950000) {
+    baseIncomeTaxYen = taxableIncomeYen * 0.20 - 427500;
+  } else if (taxableIncomeYen <= 9000000) {
+    baseIncomeTaxYen = taxableIncomeYen * 0.23 - 636000;
+  } else if (taxableIncomeYen <= 18000000) {
+    baseIncomeTaxYen = taxableIncomeYen * 0.33 - 1536000;
+  } else if (taxableIncomeYen <= 40000000) {
+    baseIncomeTaxYen = taxableIncomeYen * 0.40 - 2796000;
+  } else {
+    baseIncomeTaxYen = taxableIncomeYen * 0.45 - 4796000;
+  }
+
+  // 復興特別所得税 (2.1%)
+  const reconTaxYen = baseIncomeTaxYen * 0.021;
+  const incomeTaxYen = Math.floor(baseIncomeTaxYen + reconTaxYen);
+
+  // 住民税 (一律10%)
+  const residentTaxYen = Math.floor(taxableIncomeYen * 0.10);
+
+  const totalTaxYen = incomeTaxYen + residentTaxYen;
+  const totalTaxMan = Math.round((totalTaxYen / 10000) * 100) / 100;
+  const netAmountMan = Math.round((grossAmount - totalTaxMan) * 100) / 100;
+
+  return {
+    grossAmount,
+    years,
+    deduction,
+    taxableIncome: taxableIncomeMan,
+    incomeTax: incomeTaxYen / 10000,
+    residentTax: residentTaxYen / 10000,
+    totalTax: totalTaxMan,
+    netAmount: netAmountMan
+  };
+}
+
+/**
+ * ライフサイクル資産シミュレーションエンジン (順次計算対応)
+ * @param {object} cfg - 現在のstate設定
+ */
+function runSimulation(cfg) {
+  const currentAge = parseInt(cfg.currentAge, 10) || 0;
+  const globalEndAge = parseInt(cfg.endAge, 10) || 0;
+  const endAge = 100;
+  const totalYears = Math.max(0, endAge - currentAge);
+
+  // 実効積立パターンを算出
+  const taxableEff = calcEffectivePatterns(currentAge, globalEndAge, cfg.accounts.taxable.patterns);
+  const newNisaEff = calcEffectivePatterns(currentAge, globalEndAge, cfg.accounts.newNisa.patterns);
+
+  // 各口座の現在残高
+  let balTaxable = parseFloat(cfg.accounts.taxable.initial) || 0;
+  let bookTaxable = balTaxable; // 簿価 (元本)
+
+  // 旧NISA (2018〜2023年の各年度スロット管理)
+  const oldNisaYears = [2018, 2019, 2020, 2021, 2022, 2023];
+  const oldNisaBaseYear = parseInt(cfg.accounts.oldNisa.baseYear, 10) || 2024;
+  const oldNisaSlots = {};
+  let balOldNisa = 0;
+
+  oldNisaYears.forEach(yr => {
+    const val = (cfg.accounts.oldNisa.years && cfg.accounts.oldNisa.years[yr] !== undefined)
+      ? (parseFloat(cfg.accounts.oldNisa.years[yr]) || 0)
+      : 0;
+    oldNisaSlots[yr] = val;
+    balOldNisa += val;
+  });
+
+  let balNewNisa = parseFloat(cfg.accounts.newNisa.initial) || 0;
+  let bookNewNisa = Math.min(balNewNisa, NISA_LIFETIME_LIMIT); // 生涯枠カウント用簿価
+
+  let balDc = parseFloat(cfg.accounts.dc.initial) || 0;
+  let dcReceived = false;
+  let dcNetTransferred = 0;
+  let dcTaxPaid = 0;
+
+  let balStock = parseFloat(cfg.accounts.stock.initial) || 0;
+
+  // DCの通算年数計算
+  const dcYearsPast = parseFloat(cfg.accounts.dc.yearsPast) || 0;
+
+  const records = [];
+
+  // 初期状態 (0年目 / 現在の年齢)
+  records.push({
+    age: currentAge,
+    year: 0,
+    calYear: oldNisaBaseYear,
+    totalAssets: Math.round((balTaxable + balOldNisa + balNewNisa + balDc + balStock) * 10) / 10,
+    taxable: Math.round(balTaxable * 10) / 10,
+    oldNisa: Math.round(balOldNisa * 10) / 10,
+    newNisa: Math.round(balNewNisa * 10) / 10,
+    dc: Math.round(balDc * 10) / 10,
+    stock: Math.round(balStock * 10) / 10,
+    annualContribute: 0,
+    annualGain: 0,
+    annualPension: 0,
+    dcTransfer: 0,
+    oldNisaTransfer: 0,
+    annualWithdraw: 0,
+    status: 'initial'
+  });
+
+  for (let y = 1; y <= totalYears; y++) {
+    const age = currentAge + y;
+    const calYear = oldNisaBaseYear + y;
+    let yearContributeTotal = 0;
+    let yearGainTotal = 0;
+    let dcTransferThisYear = 0;
+    let oldNisaTransferThisYear = 0;
+
+    // -------------------------------------------------------------
+    // 1. 各口座の積立・運用複利計算
+    // -------------------------------------------------------------
+
+    // ① 特定口座 (順次パターンの判定)
+    let taxableMonthly = 0;
+    const activeTaxable = taxableEff.find(eff => eff.startAge < age && age <= eff.endAge);
+    if (activeTaxable) {
+      taxableMonthly = activeTaxable.monthly;
+    }
+    const taxableAnnualContribute = taxableMonthly * 12;
+    const taxableRate = (parseFloat(cfg.accounts.taxable.rate) || 0) / 100;
+    const taxableGain = (balTaxable + taxableAnnualContribute * 0.5) * taxableRate;
+    balTaxable += taxableAnnualContribute + taxableGain;
+    bookTaxable += taxableAnnualContribute;
+    yearContributeTotal += taxableAnnualContribute;
+    yearGainTotal += taxableGain;
+
+    // ② 旧NISA口座 (各年度スロット運用 & 21年目順次特定口座移管)
+    let oldNisaGain = 0;
+    const oldNisaRate = (parseFloat(cfg.accounts.oldNisa.rate) || 0) / 100;
+
+    oldNisaYears.forEach(yr => {
+      if (oldNisaSlots[yr] > 0) {
+        // 運用利回り計算
+        const gain = oldNisaSlots[yr] * oldNisaRate;
+        oldNisaSlots[yr] += gain;
+        oldNisaGain += gain;
+
+        // 21年目に特定口座へ順次移管 (保有期限20年: 投資年 + 20年満了時)
+        const transferYear = yr + 20; // 例: 2018年分 → 2038年
+        if (calYear >= transferYear) {
+          const transferAmt = oldNisaSlots[yr];
+          balTaxable += transferAmt;
+          bookTaxable += transferAmt; // 移管時時価が新たな特定口座の簿価となる
+          oldNisaTransferThisYear += transferAmt;
+          oldNisaSlots[yr] = 0;
+        }
+      }
+    });
+    balOldNisa = oldNisaYears.reduce((sum, yr) => sum + oldNisaSlots[yr], 0);
+    yearGainTotal += oldNisaGain;
+
+    // ③ 新NISA口座 (順次パターンの判定 & 生涯上限1,800万)
+    let newNisaMonthly = 0;
+    const activeNewNisa = newNisaEff.find(eff => eff.startAge < age && age <= eff.endAge);
+    if (activeNewNisa) {
+      newNisaMonthly = activeNewNisa.monthly;
+    }
+    let newNisaAnnualContribute = newNisaMonthly * 12;
+    if (bookNewNisa + newNisaAnnualContribute > NISA_LIFETIME_LIMIT) {
+      newNisaAnnualContribute = Math.max(0, NISA_LIFETIME_LIMIT - bookNewNisa);
+    }
+    bookNewNisa += newNisaAnnualContribute;
+    const newNisaRate = (parseFloat(cfg.accounts.newNisa.rate) || 0) / 100;
+    const newNisaGain = (balNewNisa + newNisaAnnualContribute * 0.5) * newNisaRate;
+    balNewNisa += newNisaAnnualContribute + newNisaGain;
+    yearContributeTotal += newNisaAnnualContribute;
+    yearGainTotal += newNisaGain;
+
+    // ④ 確定拠出年金 (DC/iDeCo)
+    let dcMonthly = 0;
+    if (!dcReceived) {
+      if (age <= globalEndAge) {
+        dcMonthly = parseFloat(cfg.accounts.dc.monthly) || 0;
+      }
+      const dcAnnualContribute = dcMonthly * 12;
+      const dcRate = (parseFloat(cfg.accounts.dc.rate) || 0) / 100;
+      const dcGain = (balDc + dcAnnualContribute * 0.5) * dcRate;
+      balDc += dcAnnualContribute + dcGain;
+      yearContributeTotal += dcAnnualContribute;
+      yearGainTotal += dcGain;
+
+      // 退職金受取年齢に到達した場合
+      if (age >= cfg.accounts.dc.receiveAge && cfg.accounts.dc.receiveAge > 0) {
+        const totalDcYears = dcYearsPast + (age - currentAge);
+        const taxResult = calcRetirementTax(balDc, totalDcYears);
+        dcNetTransferred = taxResult.netAmount;
+        dcTaxPaid = taxResult.totalTax;
+        dcTransferThisYear = dcNetTransferred;
+
+        // 手取り額を特定口座へ移管
+        balTaxable += dcNetTransferred;
+        bookTaxable += dcNetTransferred;
+        balDc = 0;
+        dcReceived = true;
+      }
+    }
+
+    // ⑤ 株式現物口座
+    let stockMonthly = 0;
+    if (age <= globalEndAge) {
+      stockMonthly = parseFloat(cfg.accounts.stock.monthly) || 0;
+    }
+    const stockAnnualContribute = stockMonthly * 12;
+    const stockRate = (parseFloat(cfg.accounts.stock.rate) || 0) / 100;
+    const stockGain = (balStock + stockAnnualContribute * 0.5) * stockRate;
+    balStock += stockAnnualContribute + stockGain;
+    yearContributeTotal += stockAnnualContribute;
+    yearGainTotal += stockGain;
+
+    // -------------------------------------------------------------
+    // 2. 年金受給 (公的年金)
+    // -------------------------------------------------------------
+    let annualPension = 0;
+    if (age >= cfg.pension.startAge && cfg.pension.startAge > 0) {
+      annualPension = (parseFloat(cfg.pension.monthly) || 0) * 12;
+    }
+
+    // -------------------------------------------------------------
+    // 3. 取り崩し処理 (特定口座 → 旧NISA → 新NISA 順、現物株除外)
+    // -------------------------------------------------------------
+    let annualWithdrawTarget = 0;
+    let actualWithdraw = 0;
+
+    if (age >= cfg.withdraw.startAge && cfg.withdraw.startAge > 0) {
+      if (cfg.withdraw.type === 'fixed-amount') {
+        annualWithdrawTarget = (parseFloat(cfg.withdraw.monthly) || 0) * 12;
+      } else {
+        // 定率取り崩し (対象3口座の運用後残高合計に対する割合)
+        const withdrawableTotal = balTaxable + balOldNisa + balNewNisa;
+        const withdrawRate = (parseFloat(cfg.withdraw.rate) || 0) / 100;
+        annualWithdrawTarget = withdrawableTotal * withdrawRate;
+      }
+
+      let remainingToWithdraw = annualWithdrawTarget;
+
+      // 優先順位1位: 特定口座から取り崩し
+      if (remainingToWithdraw > 0 && balTaxable > 0) {
+        const drawTaxable = Math.min(balTaxable, remainingToWithdraw);
+        balTaxable -= drawTaxable;
+        remainingToWithdraw -= drawTaxable;
+        actualWithdraw += drawTaxable;
+      }
+
+      // 優先順位2位: 旧NISAから取り崩し (移管前の残高がある場合、古い年度から順に取り崩す)
+      if (remainingToWithdraw > 0 && balOldNisa > 0) {
+        const drawOldNisa = Math.min(balOldNisa, remainingToWithdraw);
+        let remDraw = drawOldNisa;
+        for (const yr of oldNisaYears) {
+          if (oldNisaSlots[yr] > 0 && remDraw > 0) {
+            const d = Math.min(oldNisaSlots[yr], remDraw);
+            oldNisaSlots[yr] -= d;
+            remDraw -= d;
+          }
+        }
+        balOldNisa = oldNisaYears.reduce((sum, yr) => sum + oldNisaSlots[yr], 0);
+        remainingToWithdraw -= drawOldNisa;
+        actualWithdraw += drawOldNisa;
+      }
+
+      // 優先順位3位: 新NISAから取り崩し
+      if (remainingToWithdraw > 0 && balNewNisa > 0) {
+        const drawNewNisa = Math.min(balNewNisa, remainingToWithdraw);
+        balNewNisa -= drawNewNisa;
+        remainingToWithdraw -= drawNewNisa;
+        actualWithdraw += drawNewNisa;
+      }
+
+      // 株式現物は取り崩さない (温存)
+    }
+
+    const totalAssets = balTaxable + balOldNisa + balNewNisa + balDc + balStock;
+
+    records.push({
+      age,
+      year: y,
+      calYear,
+      totalAssets: Math.round(totalAssets * 10) / 10,
+      taxable: Math.round(balTaxable * 10) / 10,
+      oldNisa: Math.round(balOldNisa * 10) / 10,
+      newNisa: Math.round(balNewNisa * 10) / 10,
+      dc: Math.round(balDc * 10) / 10,
+      stock: Math.round(balStock * 10) / 10,
+      annualContribute: Math.round(yearContributeTotal * 10) / 10,
+      annualGain: Math.round(yearGainTotal * 10) / 10,
+      annualPension: Math.round(annualPension * 10) / 10,
+      dcTransfer: Math.round(dcTransferThisYear * 10) / 10,
+      oldNisaTransfer: Math.round(oldNisaTransferThisYear * 10) / 10,
+      annualWithdraw: Math.round(actualWithdraw * 10) / 10,
+      targetWithdraw: Math.round(annualWithdrawTarget * 10) / 10
+    });
+  }
+
+  // サマリー計算
+  let peakAssetRecord = records[0] || { totalAssets: 0, age: currentAge };
+  let totalPensionReceived = 0;
+  for (const r of records) {
+    if (r.totalAssets > peakAssetRecord.totalAssets) {
+      peakAssetRecord = r;
+    }
+    totalPensionReceived += r.annualPension;
+  }
+
+  const record100 = records[records.length - 1] || { totalAssets: 0, taxable: 0, stock: 0 };
+
+  return {
+    records,
+    summary: {
+      peakAssets: peakAssetRecord.totalAssets,
+      peakAge: peakAssetRecord.age,
+      finalAssets: record100.totalAssets,
+      finalTaxable: record100.taxable,
+      finalStock: record100.stock,
+      totalPension: Math.round(totalPensionReceived),
+      dcNet: dcNetTransferred,
+      dcTax: dcTaxPaid,
+      nisaBookTotal: bookNewNisa
+    }
+  };
+}
+
+// ============================================================================
+// UI Controllers & Renderers
+// ============================================================================
+let mainChartInstance = null;
+
+/**
+ * 実質計算対象期間バッジの更新
+ */
+function updateEffectivePatternBadges() {
+  const currentAge = parseInt(state.currentAge, 10) || 0;
+  const endAge = parseInt(state.endAge, 10) || 0;
+
+  // 特定口座
+  const taxableEff = calcEffectivePatterns(currentAge, endAge, state.accounts.taxable.patterns);
+  taxableEff.forEach((eff, idx) => {
+    const el = document.getElementById(`taxable-p${idx + 1}-effective`);
+    if (!el) return;
+    if (eff.effYears === 0) {
+      el.textContent = '実質 0年 (対象外)';
+      el.className = 'pattern-effective-badge badge-zero';
+    } else if (eff.isCapped) {
+      el.textContent = `実質 ${eff.effYears}年 (${eff.startAge}〜${eff.endAge}歳 ※短縮)`;
+      el.className = 'pattern-effective-badge badge-capped';
+    } else {
+      el.textContent = `実質 ${eff.effYears}年 (${eff.startAge}〜${eff.endAge}歳)`;
+      el.className = 'pattern-effective-badge';
+    }
+  });
+
+  // 新NISA口座
+  const newNisaEff = calcEffectivePatterns(currentAge, endAge, state.accounts.newNisa.patterns);
+  newNisaEff.forEach((eff, idx) => {
+    const el = document.getElementById(`newnisa-p${idx + 1}-effective`);
+    if (!el) return;
+    if (eff.effYears === 0) {
+      el.textContent = '実質 0年 (対象外)';
+      el.className = 'pattern-effective-badge badge-zero';
+    } else if (eff.isCapped) {
+      el.textContent = `実質 ${eff.effYears}年 (${eff.startAge}〜${eff.endAge}歳 ※短縮)`;
+      el.className = 'pattern-effective-badge badge-capped';
+    } else {
+      el.textContent = `実質 ${eff.effYears}年 (${eff.startAge}〜${eff.endAge}歳)`;
+      el.className = 'pattern-effective-badge';
+    }
+  });
+}
+
+/**
+ * 旧NISA合計バッジおよび年度別移管年齢バッジの更新
+ */
+function updateOldNisaUIBadges() {
+  let oldNisaTotal = 0;
+  const oldNisaBaseYear = parseInt(state.accounts.oldNisa.baseYear, 10) || 2024;
+  const currentAge = parseInt(state.currentAge, 10) || 35;
+  const yearsObj = state.accounts.oldNisa.years || {};
+
+  [2018, 2019, 2020, 2021, 2022, 2023].forEach(yr => {
+    const val = yearsObj[yr] !== undefined ? yearsObj[yr] : 0;
+    oldNisaTotal += parseFloat(val) || 0;
+
+    const transYear = yr + 20; // 21年目移管（投資年 + 20年満了時）
+    const transAge = currentAge + (transYear - oldNisaBaseYear);
+    const badge = document.getElementById(`badge-oldnisa-trans-${yr}`);
+    if (badge) {
+      if (transYear <= oldNisaBaseYear) {
+        badge.textContent = `${transYear}年 (移管済)`;
+        badge.className = 'oldnisa-transfer-badge badge-capped';
+      } else {
+        badge.textContent = `${transYear}年移管 (${transAge}歳)`;
+        badge.className = 'oldnisa-transfer-badge';
+      }
+    }
+  });
+
+  setText('disp-oldnisa-total', formatMoneyBadge(oldNisaTotal));
+  setText('disp-oldnisa-rate', state.accounts.oldNisa.rate);
+  setText('disp-oldnisa-base-year', state.accounts.oldNisa.baseYear);
+  setText('sum-oldnisa', `合計 ${formatMoneyBadge(oldNisaTotal)}万 (2018〜2023年)`);
+}
+
+/**
+ * フォーム要素とStateのバインディング
+ */
+function syncStateToUI() {
+  // 基本プロファイル
+  setInputValue('range-current-age', state.currentAge);
+  setInputValue('input-current-age', state.currentAge);
+  setText('disp-current-age', state.currentAge);
+
+  setInputValue('range-end-age', state.endAge);
+  setInputValue('input-end-age', state.endAge);
+  setText('disp-end-age', state.endAge);
+
+  // ① 特定口座
+  setInputValue('range-taxable-initial', state.accounts.taxable.initial);
+  setInputValue('taxable-initial', state.accounts.taxable.initial);
+  setText('disp-taxable-initial', formatMoneyBadge(state.accounts.taxable.initial));
+  setInputValue('taxable-rate', state.accounts.taxable.rate);
+  setText('disp-taxable-rate', state.accounts.taxable.rate);
+
+  // 特定口座 3パターン (期間・金額)
+  const tPatterns = state.accounts.taxable.patterns || [];
+  ['p1', 'p2', 'p3'].forEach((pKey, idx) => {
+    const p = tPatterns[idx] || { years: 0, monthly: 0 };
+    setInputValue(`taxable-${pKey}-years`, p.years);
+    setInputValue(`taxable-${pKey}-monthly`, p.monthly);
+  });
+  setText('sum-taxable', `初期 ${formatMoneyBadge(state.accounts.taxable.initial)}万`);
+
+  // ② 旧NISA
+  setInputValue('oldnisa-rate', state.accounts.oldNisa.rate);
+  setInputValue('oldnisa-base-year', state.accounts.oldNisa.baseYear);
+
+  const yearsObj = state.accounts.oldNisa.years || {};
+  [2018, 2019, 2020, 2021, 2022, 2023].forEach(yr => {
+    const val = yearsObj[yr] !== undefined ? yearsObj[yr] : 0;
+    setInputValue(`oldnisa-val-${yr}`, val);
+  });
+
+  updateOldNisaUIBadges();
+
+  // ③ 新NISA
+  setInputValue('range-newnisa-initial', state.accounts.newNisa.initial);
+  setInputValue('newnisa-initial', state.accounts.newNisa.initial);
+  setText('disp-newnisa-initial', formatMoneyBadge(state.accounts.newNisa.initial));
+  setInputValue('newnisa-rate', state.accounts.newNisa.rate);
+  setText('disp-newnisa-rate', state.accounts.newNisa.rate);
+
+  // 新NISA 3パターン (期間・金額)
+  const nPatterns = state.accounts.newNisa.patterns || [];
+  ['p1', 'p2', 'p3'].forEach((pKey, idx) => {
+    const p = nPatterns[idx] || { years: 0, monthly: 0 };
+    setInputValue(`newnisa-${pKey}-years`, p.years);
+    setInputValue(`newnisa-${pKey}-monthly`, p.monthly);
+  });
+  setText('sum-newnisa', `初期 ${formatMoneyBadge(state.accounts.newNisa.initial)}万`);
+
+  // ④ DC
+  setInputValue('range-dc-initial', state.accounts.dc.initial);
+  setInputValue('dc-initial', state.accounts.dc.initial);
+  setText('disp-dc-initial', formatMoneyBadge(state.accounts.dc.initial));
+  setInputValue('dc-monthly', state.accounts.dc.monthly);
+  setText('disp-dc-monthly', state.accounts.dc.monthly);
+  setInputValue('dc-rate', state.accounts.dc.rate);
+  setText('disp-dc-rate', state.accounts.dc.rate);
+  setInputValue('dc-receive-age', state.accounts.dc.receiveAge);
+  setText('disp-dc-receive-age', state.accounts.dc.receiveAge);
+  setInputValue('dc-years-past', state.accounts.dc.yearsPast);
+  setText('disp-dc-years-past', state.accounts.dc.yearsPast);
+  setText('sum-dc', `初期 ${formatMoneyBadge(state.accounts.dc.initial)}万 / 拠出 ${state.accounts.dc.monthly}万`);
+
+  // ⑤ 株式現物
+  setInputValue('range-stock-initial', state.accounts.stock.initial);
+  setInputValue('stock-initial', state.accounts.stock.initial);
+  setText('disp-stock-initial', formatMoneyBadge(state.accounts.stock.initial));
+  setInputValue('stock-monthly', state.accounts.stock.monthly);
+  setText('disp-stock-monthly', state.accounts.stock.monthly);
+  setInputValue('stock-rate', state.accounts.stock.rate);
+  setText('disp-stock-rate', state.accounts.stock.rate);
+  setText('sum-stock', `初期 ${formatMoneyBadge(state.accounts.stock.initial)}万 / 買増 ${state.accounts.stock.monthly}万`);
+
+  // 公的年金
+  setInputValue('pension-start-age', state.pension.startAge);
+  setText('disp-pension-start-age', state.pension.startAge);
+  setInputValue('pension-monthly', state.pension.monthly);
+  setText('disp-pension-monthly', state.pension.monthly);
+  setText('disp-pension-annual', Math.round(state.pension.monthly * 12));
+
+  // 取り崩し
+  setInputValue('range-withdraw-start-age', state.withdraw.startAge);
+  setInputValue('withdraw-start-age', state.withdraw.startAge);
+  setText('disp-withdraw-start-age', state.withdraw.startAge);
+
+  const radioType = document.querySelector(`input[name="withdraw-type"][value="${state.withdraw.type}"]`);
+  if (radioType) radioType.checked = true;
+
+  if (state.withdraw.type === 'fixed-amount') {
+    const boxAmount = document.getElementById('box-withdraw-amount');
+    const boxRate = document.getElementById('box-withdraw-rate');
+    if (boxAmount) boxAmount.classList.remove('hidden');
+    if (boxRate) boxRate.classList.add('hidden');
+  } else {
+    const boxAmount = document.getElementById('box-withdraw-amount');
+    const boxRate = document.getElementById('box-withdraw-rate');
+    if (boxAmount) boxAmount.classList.add('hidden');
+    if (boxRate) boxRate.classList.remove('hidden');
+  }
+
+  setInputValue('range-withdraw-monthly', state.withdraw.monthly);
+  setInputValue('withdraw-monthly', state.withdraw.monthly);
+  setText('disp-withdraw-monthly', state.withdraw.monthly);
+  setText('disp-withdraw-annual', Math.round(state.withdraw.monthly * 12));
+
+  setInputValue('range-withdraw-rate', state.withdraw.rate);
+  setInputValue('withdraw-rate', state.withdraw.rate);
+  setText('disp-withdraw-rate', state.withdraw.rate);
+
+  // NISA Progress
+  const nisaInitial = parseFloat(state.accounts.newNisa.initial) || 0;
+  const fillPct = Math.min(100, Math.round((nisaInitial / NISA_LIFETIME_LIMIT) * 100));
+  const elFill = document.getElementById('nisa-limit-fill');
+  if (elFill) elFill.style.width = `${fillPct}%`;
+  setText('nisa-limit-fill-info', `${formatMoneyBadge(nisaInitial)}万 / 1,800万 (${fillPct}%)`);
+
+  // 実質計算期間バッジ更新
+  updateEffectivePatternBadges();
+}
+
+function setInputValue(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.value = (val !== undefined && val !== null) ? val : 0;
+}
+
+function setText(id, text) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = text;
+}
+
+/**
+ * UIからStateを読み取って更新
+ */
+function readStateFromUI() {
+  const parseNum = (id, def = 0) => {
+    const el = document.getElementById(id);
+    if (!el) return def;
+    const v = parseFloat(el.value);
+    return isNaN(v) ? def : v;
+  };
+
+  const parseIntNum = (id, def = 0) => {
+    const el = document.getElementById(id);
+    if (!el) return def;
+    const v = parseInt(el.value, 10);
+    return isNaN(v) ? def : v;
+  };
+
+  state.currentAge = parseIntNum('input-current-age', 35);
+  state.endAge = parseIntNum('input-end-age', 60);
+
+  // ① 特定口座
+  state.accounts.taxable.initial = parseNum('taxable-initial', 0);
+  state.accounts.taxable.rate = parseNum('taxable-rate', 0);
+  state.accounts.taxable.patterns = [
+    {
+      years: parseIntNum('taxable-p1-years', 0),
+      monthly: parseNum('taxable-p1-monthly', 0)
+    },
+    {
+      years: parseIntNum('taxable-p2-years', 0),
+      monthly: parseNum('taxable-p2-monthly', 0)
+    },
+    {
+      years: parseIntNum('taxable-p3-years', 0),
+      monthly: parseNum('taxable-p3-monthly', 0)
+    }
+  ];
+
+  // ② 旧NISA
+  state.accounts.oldNisa.rate = parseNum('oldnisa-rate', 5.0);
+  state.accounts.oldNisa.baseYear = parseIntNum('oldnisa-base-year', 2024);
+  if (!state.accounts.oldNisa.years) state.accounts.oldNisa.years = {};
+  [2018, 2019, 2020, 2021, 2022, 2023].forEach(yr => {
+    state.accounts.oldNisa.years[yr] = parseNum(`oldnisa-val-${yr}`, 0);
+  });
+
+  // ③ 新NISA
+  state.accounts.newNisa.initial = parseNum('newnisa-initial', 0);
+  state.accounts.newNisa.rate = parseNum('newnisa-rate', 0);
+  state.accounts.newNisa.patterns = [
+    {
+      years: parseIntNum('newnisa-p1-years', 0),
+      monthly: parseNum('newnisa-p1-monthly', 0)
+    },
+    {
+      years: parseIntNum('newnisa-p2-years', 0),
+      monthly: parseNum('newnisa-p2-monthly', 0)
+    },
+    {
+      years: parseIntNum('newnisa-p3-years', 0),
+      monthly: parseNum('newnisa-p3-monthly', 0)
+    }
+  ];
+
+  // ④ DC
+  state.accounts.dc.initial = parseNum('dc-initial', 0);
+  state.accounts.dc.monthly = parseNum('dc-monthly', 0);
+  state.accounts.dc.rate = parseNum('dc-rate', 0);
+  state.accounts.dc.receiveAge = parseIntNum('dc-receive-age', 60);
+  state.accounts.dc.yearsPast = parseNum('dc-years-past', 0);
+
+  // ⑤ 株式現物
+  state.accounts.stock.initial = parseNum('stock-initial', 0);
+  state.accounts.stock.monthly = parseNum('stock-monthly', 0);
+  state.accounts.stock.rate = parseNum('stock-rate', 0);
+
+  // 公的年金
+  state.pension.startAge = parseIntNum('pension-start-age', 65);
+  state.pension.monthly = parseNum('pension-monthly', 0);
+
+  // 取り崩し
+  state.withdraw.startAge = parseIntNum('withdraw-start-age', 65);
+  const checkedRadio = document.querySelector('input[name="withdraw-type"]:checked');
+  if (checkedRadio) state.withdraw.type = checkedRadio.value;
+
+  state.withdraw.monthly = parseNum('withdraw-monthly', 0);
+  state.withdraw.rate = parseNum('withdraw-rate', 0);
+
+  // LocalStorageに保存
+  saveStateToLocalStorage();
+}
+
+/**
+ * シミュレーションの実行と全画面更新
+ */
+function updateSimulation() {
+  readStateFromUI();
+  const sim = runSimulation(state);
+
+  // 実質計算期間バッジ更新
+  updateEffectivePatternBadges();
+
+  // 旧NISAバッジ・合計値更新
+  updateOldNisaUIBadges();
+
+  // 1. KPI更新
+  setText('kpi-peak-assets', formatNumber(sim.summary.peakAssets));
+  setText('kpi-peak-age', `${sim.summary.peakAge} 歳到達時`);
+  setText('kpi-100-assets', formatNumber(sim.summary.finalAssets));
+  setText('kpi-100-status', sim.summary.finalAssets > 0 ? (sim.summary.finalAssets > 2000 ? '資産潤沢' : '資産維持') : '資産枯渇');
+  setText('kpi-dc-net', formatNumber(sim.summary.dcNet));
+  setText('kpi-dc-tax-saved', `税引前: ${formatNumber(sim.summary.dcNet + sim.summary.dcTax)}万 (税額 ${formatNumber(sim.summary.dcTax)}万)`);
+  setText('kpi-pension-total', formatNumber(sim.summary.totalPension));
+  setText('kpi-pension-span', `${state.pension.startAge}歳〜100歳 (月${state.pension.monthly}万)`);
+
+  // モバイル用サマリーバー & タブバッジ更新
+  setText('summary-bar-peak', `${formatNumber(sim.summary.peakAssets)} 万`);
+  setText('summary-bar-end', `${formatNumber(sim.summary.finalAssets)} 万`);
+  setText('tab-badge-peak', `${formatNumber(sim.summary.peakAssets)} 万`);
+
+  // DCプレビューボックス更新
+  if (state.accounts.dc.receiveAge > 0 && sim.summary.dcNet > 0) {
+    const grossDc = sim.summary.dcNet + sim.summary.dcTax;
+    const totalDcYears = state.accounts.dc.yearsPast + (state.accounts.dc.receiveAge - state.currentAge);
+    const taxInfo = calcRetirementTax(grossDc, totalDcYears);
+    setText('preview-dc-total', formatNumber(grossDc));
+    setText('preview-dc-years', `${taxInfo.years}`);
+    setText('preview-dc-deduction', formatNumber(taxInfo.deduction));
+    setText('preview-dc-tax', formatNumber(taxInfo.totalTax));
+    setText('preview-dc-net', formatNumber(taxInfo.netAmount));
+  } else {
+    setText('preview-dc-total', '-');
+    setText('preview-dc-years', '-');
+    setText('preview-dc-deduction', '-');
+    setText('preview-dc-tax', '-');
+    setText('preview-dc-net', '-');
+  }
+
+  // 2. グラフ描画更新
+  renderChart(sim.records);
+
+  // 3. マイルストーン描画 (60歳〜100歳 10歳刻み)
+  renderMilestones(sim.records);
+
+  // 4. 全年齢詳細テーブル描画
+  renderDetailTable(sim.records);
+}
+
+/**
+ * マイルストーンの描画 (60, 70, 80, 90, 100歳)
+ */
+function renderMilestones(records) {
+  const targetAges = [60, 70, 80, 90, 100];
+  const container = document.getElementById('milestone-cards-container');
+  const tableBody = document.getElementById('milestone-table-body');
+  
+  if (!container || !tableBody) return;
+
+  container.innerHTML = '';
+  tableBody.innerHTML = '';
+
+  if (!records || records.length === 0) return;
+
+  targetAges.forEach(targetAge => {
+    // レコード取得 (存在しない場合は最終または最寄りのレコード)
+    const rec = records.find(r => r.age === targetAge) || records[records.length - 1];
+    if (!rec) return;
+
+    // 健全性ステータス判定
+    let statusClass = 'status-rich';
+    let statusText = '潤沢';
+    if (rec.totalAssets <= 0) {
+      statusClass = 'status-depleted';
+      statusText = '枯渇';
+    } else if (rec.totalAssets < 1000) {
+      statusClass = 'status-warning';
+      statusText = '要注意';
+    } else if (rec.totalAssets < 3000) {
+      statusClass = 'status-stable';
+      statusText = '安定';
+    }
+
+    // 1. マイルストーンカード生成
+    const card = document.createElement('div');
+    card.className = 'milestone-card';
+    card.innerHTML = `
+      <div class="m-header">
+        <span class="m-age"><i data-lucide="calendar"></i> ${targetAge} 歳時点</span>
+        <span class="m-status-badge ${statusClass}">${statusText}</span>
+      </div>
+      <div class="m-total">
+        <span class="m-total-label">総資産額</span>
+        <span class="m-total-val">${formatNumber(rec.totalAssets)} <small style="font-size:0.7rem;">万円</small></span>
+      </div>
+      <div class="m-breakdown">
+        <div class="m-row"><span>特定口座:</span><strong>${formatNumber(rec.taxable)} 万</strong></div>
+        <div class="m-row"><span>旧NISA:</span><strong>${formatNumber(rec.oldNisa)} 万</strong></div>
+        <div class="m-row"><span>新NISA:</span><strong>${formatNumber(rec.newNisa)} 万</strong></div>
+        <div class="m-row"><span>確定拠出(DC):</span><strong>${formatNumber(rec.dc)} 万</strong></div>
+        <div class="m-row"><span>株式現物:</span><strong>${formatNumber(rec.stock)} 万</strong></div>
+      </div>
+      <div class="m-cashflow-row">
+        <span>年金: <strong>${rec.annualPension > 0 ? formatNumber(rec.annualPension) + '万' : 'なし'}</strong></span>
+        <span>取崩し: <strong>${rec.annualWithdraw > 0 ? formatNumber(rec.annualWithdraw) + '万' : '0万'}</strong></span>
+      </div>
+    `;
+    container.appendChild(card);
+
+    // 2. マイルストーンテーブル行生成
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><strong>${targetAge} 歳時点</strong> (経過${rec.year}年)</td>
+      <td><strong style="color: var(--text-primary);">${formatNumber(rec.totalAssets)} 万円</strong></td>
+      <td style="color: var(--col-taxable);">${formatNumber(rec.taxable)} 万円</td>
+      <td style="color: var(--col-oldnisa);">${formatNumber(rec.oldNisa)} 万円</td>
+      <td style="color: var(--col-newnisa);">${formatNumber(rec.newNisa)} 万円</td>
+      <td style="color: var(--col-dc);">${formatNumber(rec.dc)} 万円</td>
+      <td style="color: var(--col-stock);">${formatNumber(rec.stock)} 万円</td>
+      <td>${rec.annualPension > 0 ? formatNumber(rec.annualPension) + ' 万円' : '-'}</td>
+      <td style="color: ${rec.annualWithdraw > 0 ? 'var(--col-danger)' : 'inherit'};">${rec.annualWithdraw > 0 ? formatNumber(rec.annualWithdraw) + ' 万円' : '-'}</td>
+      <td><span class="m-status-badge ${statusClass}">${statusText}</span></td>
+    `;
+    tableBody.appendChild(tr);
+  });
+
+  if (window.lucide) {
+    window.lucide.createIcons();
+  }
+}
+
+/**
+ * 全年齢詳細テーブルの描画
+ */
+function renderDetailTable(records) {
+  const tableBody = document.getElementById('full-detail-table-body');
+  if (!tableBody) return;
+
+  tableBody.innerHTML = '';
+  if (!records || records.length === 0) return;
+
+    records.forEach(rec => {
+      let transferText = '-';
+      if (rec.dcTransfer > 0 && rec.oldNisaTransfer > 0) {
+        transferText = `+${formatNumber(rec.dcTransfer)}万(DC) / +${formatNumber(rec.oldNisaTransfer)}万(旧NISA)`;
+      } else if (rec.dcTransfer > 0) {
+        transferText = `+${formatNumber(rec.dcTransfer)}万 (DC移管)`;
+      } else if (rec.oldNisaTransfer > 0) {
+        transferText = `+${formatNumber(rec.oldNisaTransfer)}万 (旧NISA移管)`;
+      }
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><strong>${rec.age} 歳</strong></td>
+        <td>${rec.year}年目</td>
+        <td><strong>${formatNumber(rec.totalAssets)} 万</strong></td>
+        <td>${rec.annualContribute > 0 ? '+' + formatNumber(rec.annualContribute) + ' 万' : '-'}</td>
+        <td style="color: ${rec.annualGain >= 0 ? 'var(--col-success)' : 'var(--col-danger)'};">${rec.annualGain >= 0 ? '+' : ''}${formatNumber(rec.annualGain)} 万</td>
+        <td>${rec.annualPension > 0 ? formatNumber(rec.annualPension) + ' 万' : '-'}</td>
+        <td style="color: ${rec.oldNisaTransfer > 0 ? 'var(--col-oldnisa)' : 'var(--col-dc)'}; font-size: 0.73rem;">${transferText}</td>
+        <td style="color: var(--col-taxable);">${formatNumber(rec.taxable)} 万</td>
+        <td style="color: var(--col-oldnisa);">${formatNumber(rec.oldNisa)} 万</td>
+        <td style="color: var(--col-newnisa);">${formatNumber(rec.newNisa)} 万</td>
+        <td style="color: var(--col-dc);">${formatNumber(rec.dc)} 万</td>
+        <td style="color: var(--col-stock);">${formatNumber(rec.stock)} 万</td>
+        <td style="color: ${rec.annualWithdraw > 0 ? 'var(--col-danger)' : 'inherit'};">${rec.annualWithdraw > 0 ? '-' + formatNumber(rec.annualWithdraw) + ' 万' : '-'}</td>
+      `;
+      tableBody.appendChild(tr);
+    });
+
+  setText('badge-table-rows', `${state.currentAge}歳〜100歳 (${records.length}行)`);
+}
+
+/**
+ * Chart.js グラフ描画
+ */
+function renderChart(records) {
+  const ctx = document.getElementById('mainChart');
+  if (!ctx) return;
+
+  if (!records || records.length === 0) {
+    if (mainChartInstance) mainChartInstance.destroy();
+    return;
+  }
+
+  const labels = records.map(r => `${r.age}歳`);
+
+  const dataTaxable = records.map(r => r.taxable);
+  const dataOldNisa = records.map(r => r.oldNisa);
+  const dataNewNisa = records.map(r => r.newNisa);
+  const dataDc = records.map(r => r.dc);
+  const dataStock = records.map(r => r.stock);
+  const dataTotal = records.map(r => r.totalAssets);
+
+  const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+  const gridColor = isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.06)';
+  const textColor = isDark ? '#9ca3af' : '#4b5563';
+
+  if (mainChartInstance) {
+    mainChartInstance.destroy();
+  }
+
+  if (state.chartType === 'stacked') {
+    // 口座別積み上げ面グラフ
+    mainChartInstance = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: '株式現物 (温存)',
+            data: dataStock,
+            backgroundColor: 'rgba(244, 63, 94, 0.55)',
+            borderColor: '#f43f5e',
+            borderWidth: 1.5,
+            fill: true,
+            tension: 0.25,
+            pointRadius: 0
+          },
+          {
+            label: '確定拠出年金 (DC)',
+            data: dataDc,
+            backgroundColor: 'rgba(139, 92, 246, 0.55)',
+            borderColor: '#8b5cf6',
+            borderWidth: 1.5,
+            fill: true,
+            tension: 0.25,
+            pointRadius: 0
+          },
+          {
+            label: '新NISA (非課税)',
+            data: dataNewNisa,
+            backgroundColor: 'rgba(16, 185, 129, 0.55)',
+            borderColor: '#10b981',
+            borderWidth: 1.5,
+            fill: true,
+            tension: 0.25,
+            pointRadius: 0
+          },
+          {
+            label: '旧NISA (移管前)',
+            data: dataOldNisa,
+            backgroundColor: 'rgba(245, 158, 11, 0.55)',
+            borderColor: '#f59e0b',
+            borderWidth: 1.5,
+            fill: true,
+            tension: 0.25,
+            pointRadius: 0
+          },
+          {
+            label: '特定口座 (課税)',
+            data: dataTaxable,
+            backgroundColor: 'rgba(6, 182, 212, 0.55)',
+            borderColor: '#06b6d4',
+            borderWidth: 1.5,
+            fill: true,
+            tension: 0.25,
+            pointRadius: 0
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function(c) {
+                return `${c.dataset.label}: ${formatNumber(c.parsed.y)} 万円`;
+              },
+              footer: function(items) {
+                let sum = 0;
+                items.forEach(i => sum += i.parsed.y);
+                return `総資産額: ${formatNumber(sum)} 万円`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: { grid: { color: gridColor }, ticks: { color: textColor, maxTicksLimit: 12 } },
+          y: { stacked: true, grid: { color: gridColor }, ticks: { color: textColor, callback: v => `${v}万` } }
+        }
+      }
+    });
+  } else if (state.chartType === 'cashflow') {
+    // キャッシュフロー棒グラフ
+    const dataContribute = records.map(r => r.annualContribute);
+    const dataPension = records.map(r => r.annualPension);
+    const dataWithdraw = records.map(r => -r.annualWithdraw);
+
+    mainChartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: '年間積立拠出',
+            data: dataContribute,
+            backgroundColor: 'rgba(99, 102, 241, 0.7)',
+            borderRadius: 4
+          },
+          {
+            label: '公的年金受給',
+            data: dataPension,
+            backgroundColor: 'rgba(245, 158, 11, 0.7)',
+            borderRadius: 4
+          },
+          {
+            label: '資産取り崩し (支出)',
+            data: dataWithdraw,
+            backgroundColor: 'rgba(239, 68, 68, 0.7)',
+            borderRadius: 4
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: true, position: 'top', labels: { color: textColor, boxWidth: 12 } },
+          tooltip: {
+            callbacks: {
+              label: function(c) {
+                return `${c.dataset.label}: ${formatNumber(Math.abs(c.parsed.y))} 万円`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: { grid: { color: gridColor }, ticks: { color: textColor, maxTicksLimit: 12 } },
+          y: { grid: { color: gridColor }, ticks: { color: textColor, callback: v => `${v}万` } }
+        }
+      }
+    });
+  } else {
+    // 口座別推移線
+    mainChartInstance = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: '総資産額',
+            data: dataTotal,
+            borderColor: '#ffffff',
+            borderWidth: 2.5,
+            tension: 0.2,
+            pointRadius: 0
+          },
+          {
+            label: '特定口座',
+            data: dataTaxable,
+            borderColor: '#06b6d4',
+            borderWidth: 1.8,
+            tension: 0.2,
+            pointRadius: 0
+          },
+          {
+            label: '旧NISA',
+            data: dataOldNisa,
+            borderColor: '#f59e0b',
+            borderWidth: 1.8,
+            tension: 0.2,
+            pointRadius: 0
+          },
+          {
+            label: '新NISA',
+            data: dataNewNisa,
+            borderColor: '#10b981',
+            borderWidth: 1.8,
+            tension: 0.2,
+            pointRadius: 0
+          },
+          {
+            label: '確定拠出年金 (DC)',
+            data: dataDc,
+            borderColor: '#8b5cf6',
+            borderWidth: 1.8,
+            tension: 0.2,
+            pointRadius: 0
+          },
+          {
+            label: '株式現物',
+            data: dataStock,
+            borderColor: '#f43f5e',
+            borderWidth: 1.8,
+            tension: 0.2,
+            pointRadius: 0
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function(c) {
+                return `${c.dataset.label}: ${formatNumber(c.parsed.y)} 万円`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: { grid: { color: gridColor }, ticks: { color: textColor, maxTicksLimit: 12 } },
+          y: { grid: { color: gridColor }, ticks: { color: textColor, callback: v => `${v}万` } }
+        }
+      }
+    });
+  }
+}
+
+// ============================================================================
+// JSON Export / Import & Storage
+// ============================================================================
+
+/**
+ * 現在日時のタイムスタンプ文字列を取得 (YYYYMMDD_HHmmss)
+ */
+function getTimestampString() {
+  const now = new Date();
+  const YYYY = now.getFullYear();
+  const MM = String(now.getMonth() + 1).padStart(2, '0');
+  const DD = String(now.getDate()).padStart(2, '0');
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  const ss = String(now.getSeconds()).padStart(2, '0');
+  return `${YYYY}${MM}${DD}_${hh}${mm}${ss}`;
+}
+
+/**
+ * 設定をJSONファイルとして保存 (保存先指定 & 時分秒付きファイル名)
+ */
+async function exportSettingsAsJSON() {
+  readStateFromUI();
+  const exportData = {
+    appName: 'WealthBuildingSimulatorPro',
+    version: '2.2.0',
+    exportedAt: new Date().toISOString(),
+    config: state
+  };
+
+  const jsonString = JSON.stringify(exportData, null, 2);
+  const defaultFilename = `wealth_simulation_config_${getTimestampString()}.json`;
+
+  // 1. File System Access API (保存先ダイアログ) のサポート判定
+  if (typeof window.showSaveFilePicker === 'function') {
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: defaultFilename,
+        types: [
+          {
+            description: 'JSON Files (*.json)',
+            accept: {
+              'application/json': ['.json']
+            }
+          }
+        ]
+      });
+      const writable = await handle.createWritable();
+      await writable.write(jsonString);
+      await writable.close();
+      showToast('指定した場所に設定ファイルを保存しました', 'success');
+      return;
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        // ユーザーが保存ダイアログをキャンセルした場合
+        return;
+      }
+      console.warn('showSaveFilePicker failed, falling back to standard download:', err);
+    }
+  }
+
+  // 2. フォールバック: 通常のダウンロード処理
+  const blob = new Blob([jsonString], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = defaultFilename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  showToast('設定をJSONファイルとしてダウンロード保存しました', 'success');
+}
+
+/**
+ * JSONファイルを読み込んで設定を復元
+ */
+function importSettingsFromJSON(e) {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(evt) {
+    try {
+      const parsed = JSON.parse(evt.target.result);
+      const config = parsed.config || parsed;
+      if (!config.accounts) {
+        throw new Error('有効なシミュレーター設定ファイルではありません');
+      }
+
+      state = normalizeState(config);
+      syncStateToUI();
+      updateSimulation();
+      showToast('設定ファイルを正常に読み込みました', 'success');
+    } catch (err) {
+      showToast('ファイルの読み込みに失敗しました: ' + err.message, 'error');
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = ''; // リセット
+}
+
+/**
+ * CSVエクスポート (保存先指定 & 時分秒付きファイル名)
+ */
+async function exportTableCSV() {
+  const sim = runSimulation(state);
+  let csv = '年齢,経過年,総資産額(万円),年間積立(万円),年間運用益(万円),公的年金(万円),DC受取移管(万円),旧NISA移管(万円),特定口座(万円),旧NISA(万円),新NISA(万円),確定拠出年金(万円),株式現物(万円),年間取崩し(万円)\n';
+
+  sim.records.forEach(r => {
+    csv += `${r.age},${r.year},${r.totalAssets},${r.annualContribute},${r.annualGain},${r.annualPension},${r.dcTransfer},${r.oldNisaTransfer},${r.taxable},${r.oldNisa},${r.newNisa},${r.dc},${r.stock},${r.annualWithdraw}\n`;
+  });
+
+  const defaultFilename = `wealth_simulation_data_${getTimestampString()}.csv`;
+  const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csv], { type: 'text/csv;charset=utf-8;' });
+
+  // 1. File System Access API
+  if (typeof window.showSaveFilePicker === 'function') {
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: defaultFilename,
+        types: [
+          {
+            description: 'CSV Files (*.csv)',
+            accept: {
+              'text/csv': ['.csv']
+            }
+          }
+        ]
+      });
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      showToast('指定した場所にCSVファイルを保存しました', 'success');
+      return;
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        return;
+      }
+      console.warn('showSaveFilePicker failed, falling back to standard download:', err);
+    }
+  }
+
+  // 2. フォールバック
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = defaultFilename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  showToast('CSVファイルをダウンロードしました', 'success');
+}
+
+function normalizeState(config) {
+  const merged = Object.assign({}, DEFAULT_STATE, config);
+  if (!merged.accounts) merged.accounts = JSON.parse(JSON.stringify(DEFAULT_STATE.accounts));
+
+  // 特定口座パターンの正規化
+  merged.accounts.taxable = Object.assign({}, DEFAULT_STATE.accounts.taxable, merged.accounts.taxable || {});
+  merged.accounts.taxable.patterns = normalizePatterns(merged.accounts.taxable.patterns, DEFAULT_STATE.accounts.taxable.patterns);
+
+  // 旧NISA口座の正規化
+  merged.accounts.oldNisa = Object.assign({}, DEFAULT_STATE.accounts.oldNisa, merged.accounts.oldNisa || {});
+  if (!merged.accounts.oldNisa.years || typeof merged.accounts.oldNisa.years !== 'object') {
+    const initialTotal = parseFloat(merged.accounts.oldNisa.initial) || 0;
+    const perYear = Math.round((initialTotal / 6) * 10) / 10;
+    merged.accounts.oldNisa.years = {
+      2018: perYear,
+      2019: perYear,
+      2020: perYear,
+      2021: perYear,
+      2022: perYear,
+      2023: Math.round((initialTotal - perYear * 5) * 10) / 10
+    };
+  } else {
+    [2018, 2019, 2020, 2021, 2022, 2023].forEach(yr => {
+      if (merged.accounts.oldNisa.years[yr] === undefined) {
+        merged.accounts.oldNisa.years[yr] = 0;
+      } else {
+        merged.accounts.oldNisa.years[yr] = parseFloat(merged.accounts.oldNisa.years[yr]) || 0;
+      }
+    });
+  }
+  if (!merged.accounts.oldNisa.baseYear) {
+    merged.accounts.oldNisa.baseYear = DEFAULT_STATE.accounts.oldNisa.baseYear;
+  }
+
+  // 新NISA口座パターンの正規化
+  merged.accounts.newNisa = Object.assign({}, DEFAULT_STATE.accounts.newNisa, merged.accounts.newNisa || {});
+  merged.accounts.newNisa.patterns = normalizePatterns(merged.accounts.newNisa.patterns, DEFAULT_STATE.accounts.newNisa.patterns);
+
+  return merged;
+}
+
+function normalizePatterns(patterns, defaultPatterns) {
+  if (!Array.isArray(patterns) || patterns.length === 0) {
+    return JSON.parse(JSON.stringify(defaultPatterns));
+  }
+  return [0, 1, 2].map(idx => {
+    const p = patterns[idx] || (defaultPatterns[idx] || { years: 0, monthly: 0 });
+    let years = 0;
+    if (p.years !== undefined) {
+      years = parseInt(p.years, 10) || 0;
+    } else if (p.startAge !== undefined && p.endAge !== undefined) {
+      years = Math.max(0, (parseInt(p.endAge, 10) || 0) - (parseInt(p.startAge, 10) || 0));
+    } else if (idx === 0 && p.monthly > 0) {
+      years = 10;
+    }
+    const monthly = parseFloat(p.monthly) || 0;
+    return { years, monthly };
+  });
+}
+
+/**
+ * LocalStorage 保存 & 読込
+ */
+function saveStateToLocalStorage() {
+  try {
+    localStorage.setItem('wealth_sim_pro_state', JSON.stringify(state));
+  } catch (e) {
+    console.warn('LocalStorage error:', e);
+  }
+}
+
+function loadStateFromLocalStorage() {
+  try {
+    const saved = localStorage.getItem('wealth_sim_pro_state');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      state = normalizeState(parsed);
+    }
+  } catch (e) {
+    console.warn('LocalStorage load error:', e);
+  }
+}
+
+/**
+ * すべての入力数値をゼロにリセットする関数
+ */
+function resetAllToZero() {
+  if (!confirm('すべての入力数値をゼロにリセットしますか？')) {
+    return;
+  }
+
+  state = {
+    currentAge: 0,
+    endAge: 0,
+    accounts: {
+      taxable: {
+        initial: 0,
+        rate: 0,
+        patterns: [
+          { years: 0, monthly: 0 },
+          { years: 0, monthly: 0 },
+          { years: 0, monthly: 0 }
+        ]
+      },
+      oldNisa: {
+        baseYear: 2024,
+        rate: 0,
+        years: {
+          2018: 0,
+          2019: 0,
+          2020: 0,
+          2021: 0,
+          2022: 0,
+          2023: 0
+        }
+      },
+      newNisa: {
+        initial: 0,
+        rate: 0,
+        patterns: [
+          { years: 0, monthly: 0 },
+          { years: 0, monthly: 0 },
+          { years: 0, monthly: 0 }
+        ]
+      },
+      dc: {
+        initial: 0,
+        monthly: 0,
+        rate: 0,
+        receiveAge: 0,
+        yearsPast: 0
+      },
+      stock: {
+        initial: 0,
+        monthly: 0,
+        rate: 0
+      }
+    },
+    pension: {
+      startAge: 0,
+      monthly: 0
+    },
+    withdraw: {
+      startAge: 0,
+      type: 'fixed-amount',
+      monthly: 0,
+      rate: 0
+    },
+    chartType: state.chartType || 'stacked',
+    theme: state.theme || 'dark',
+    detailTableOpen: state.detailTableOpen || false
+  };
+
+  syncStateToUI();
+  updateSimulation();
+  showToast('すべての入力数値をゼロにリセットしました', 'info');
+}
+
+// ============================================================================
+// Utilities & Helpers
+// ============================================================================
+function formatNumber(num) {
+  if (num === null || num === undefined || isNaN(num)) return '0';
+  return Number(num).toLocaleString('ja-JP', { maximumFractionDigits: 1 });
+}
+
+function formatMoneyBadge(num) {
+  if (num === null || num === undefined || isNaN(num)) return '0';
+  const val = parseFloat(num);
+  if (val >= 10000) {
+    const oku = (val / 10000).toFixed(1).replace(/\.0$/, '');
+    return `${oku}億 (${formatNumber(val)})`;
+  }
+  return formatNumber(val);
+}
+
+function showToast(msg, type = 'info') {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  toast.innerHTML = `<i data-lucide="${type === 'success' ? 'check-circle' : 'alert-circle'}"></i> <span>${msg}</span>`;
+  container.appendChild(toast);
+
+  if (window.lucide) window.lucide.createIcons();
+
+  setTimeout(() => {
+    toast.style.animation = 'toastOut 0.25s ease-in forwards';
+    setTimeout(() => {
+      if (toast.parentNode) toast.parentNode.removeChild(toast);
+    }, 250);
+  }, 3500);
+}
+
+// ============================================================================
+// Event Listeners Initialization
+// ============================================================================
+document.addEventListener('DOMContentLoaded', () => {
+  // 1. LocalStorageから設定復元
+  loadStateFromLocalStorage();
+
+  // 2. テーマ初期化
+  const savedTheme = localStorage.getItem('wealth_sim_theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', savedTheme);
+  updateThemeIcon(savedTheme);
+
+  // 3. UIとState同期 & 初回シミュレーション実行
+  syncStateToUI();
+  updateSimulation();
+
+  // 4. イベントリスナー登録
+
+  // 入力変更リスナー (スライダー & 数値入力)
+  const form = document.getElementById('sim-form');
+  if (form) {
+    form.addEventListener('input', (e) => {
+      // 双方向スライダーと数値入力の同期
+      const id = e.target.id;
+      if (id.startsWith('range-')) {
+        const numId = id.replace('range-', '');
+        const targetInput = document.getElementById(numId) || document.getElementById('input-' + numId);
+        if (targetInput) targetInput.value = e.target.value;
+      } else if (e.target.classList.contains('num-input')) {
+        const rangeId = 'range-' + id.replace('input-', '');
+        const targetRange = document.getElementById(rangeId);
+        if (targetRange) targetRange.value = e.target.value;
+      }
+
+      // 取り崩しラジオ切り替え時の表示制御
+      if (e.target.name === 'withdraw-type') {
+        if (e.target.value === 'fixed-amount') {
+          const bAmount = document.getElementById('box-withdraw-amount');
+          const bRate = document.getElementById('box-withdraw-rate');
+          if (bAmount) bAmount.classList.remove('hidden');
+          if (bRate) bRate.classList.add('hidden');
+        } else {
+          const bAmount = document.getElementById('box-withdraw-amount');
+          const bRate = document.getElementById('box-withdraw-rate');
+          if (bAmount) bAmount.classList.add('hidden');
+          if (bRate) bRate.classList.remove('hidden');
+        }
+      }
+
+      updateSimulation();
+    });
+  }
+
+  // アコーディオン開閉
+  document.querySelectorAll('.acc-header').forEach(header => {
+    header.addEventListener('click', () => {
+      const box = header.closest('.account-box');
+      if (box) {
+        box.classList.toggle('collapsed');
+      }
+    });
+  });
+
+  // グラフ切り替えボタン
+  document.querySelectorAll('.btn-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.btn-toggle').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.chartType = btn.dataset.chart;
+      updateSimulation();
+    });
+  });
+
+  // JSONファイル保存
+  const btnSaveJson = document.getElementById('btn-save-json');
+  if (btnSaveJson) btnSaveJson.addEventListener('click', exportSettingsAsJSON);
+
+  // JSONファイル読込
+  const btnLoadJson = document.getElementById('btn-load-json');
+  const inputJson = document.getElementById('input-file-json');
+  if (btnLoadJson && inputJson) {
+    btnLoadJson.addEventListener('click', () => inputJson.click());
+    inputJson.addEventListener('change', importSettingsFromJSON);
+  }
+
+  // CSV出力
+  const btnExportCsv = document.getElementById('btn-export-csv');
+  const btnTableCsv = document.getElementById('btn-table-download-csv');
+  if (btnExportCsv) btnExportCsv.addEventListener('click', exportTableCSV);
+  if (btnTableCsv) btnTableCsv.addEventListener('click', exportTableCSV);
+
+  // テーマ切り替え
+  const btnTheme = document.getElementById('btn-theme-toggle');
+  if (btnTheme) {
+    btnTheme.addEventListener('click', () => {
+      const current = document.documentElement.getAttribute('data-theme') || 'dark';
+      const next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('wealth_sim_theme', next);
+      updateThemeIcon(next);
+      updateSimulation();
+    });
+  }
+
+  // 全数値をゼロにリセット
+  const btnResetZero = document.getElementById('btn-reset-zero');
+  if (btnResetZero) {
+    btnResetZero.addEventListener('click', resetAllToZero);
+  }
+
+  // 詳細テーブル開閉
+  const btnToggleDetail = document.getElementById('btn-toggle-detail-table');
+  const boxDetail = document.getElementById('box-detail-table');
+  const iconDetail = document.getElementById('icon-detail-table');
+  if (btnToggleDetail && boxDetail) {
+    boxDetail.classList.add('collapsed'); // デフォルトは閉じておく
+    btnToggleDetail.addEventListener('click', () => {
+      boxDetail.classList.toggle('collapsed');
+      if (iconDetail) {
+        iconDetail.style.transform = boxDetail.classList.contains('collapsed') ? 'rotate(0deg)' : 'rotate(180deg)';
+      }
+    });
+  }
+
+  // 旧NISA 均等配分ボタン
+  const btnDistribute = document.getElementById('btn-oldnisa-distribute');
+  if (btnDistribute) {
+    btnDistribute.addEventListener('click', () => {
+      let currentTotal = 0;
+      [2018, 2019, 2020, 2021, 2022, 2023].forEach(yr => {
+        currentTotal += parseFloat(state.accounts.oldNisa.years[yr]) || 0;
+      });
+      const input = prompt('旧NISAの合計評価額（万円）を入力してください。\n2018年〜2023年の6年分に均等配分します。', Math.round(currentTotal) || 240);
+      if (input !== null && input.trim() !== '') {
+        const val = parseFloat(input);
+        if (!isNaN(val) && val >= 0) {
+          const perYear = Math.round((val / 6) * 10) / 10;
+          [2018, 2019, 2020, 2021, 2022, 2023].forEach((yr, idx) => {
+            if (idx === 5) {
+              state.accounts.oldNisa.years[yr] = Math.round((val - perYear * 5) * 10) / 10;
+            } else {
+              state.accounts.oldNisa.years[yr] = perYear;
+            }
+          });
+          syncStateToUI();
+          updateSimulation();
+          showToast(`旧NISA合計 ${val}万円 を各年度に均等配分しました`, 'success');
+        }
+      }
+    });
+  }
+
+  // モバイルタブ切り替えハンドラ
+  function switchMobileTab(target) {
+    const tabInputs = document.getElementById('tab-btn-inputs');
+    const tabResults = document.getElementById('tab-btn-results');
+    if (target === 'results') {
+      document.body.classList.remove('tab-active-inputs');
+      document.body.classList.add('tab-active-results');
+      if (tabInputs) tabInputs.classList.remove('active');
+      if (tabResults) tabResults.classList.add('active');
+      if (mainChartInstance) {
+        setTimeout(() => mainChartInstance.resize(), 60);
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      document.body.classList.remove('tab-active-results');
+      document.body.classList.add('tab-active-inputs');
+      if (tabInputs) tabInputs.classList.add('active');
+      if (tabResults) tabResults.classList.remove('active');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
+
+  const tabInputs = document.getElementById('tab-btn-inputs');
+  const tabResults = document.getElementById('tab-btn-results');
+  if (tabInputs) tabInputs.addEventListener('click', () => switchMobileTab('inputs'));
+  if (tabResults) tabResults.addEventListener('click', () => switchMobileTab('results'));
+
+  const btnJump = document.getElementById('btn-summary-jump-results');
+  if (btnJump) {
+    btnJump.addEventListener('click', () => {
+      switchMobileTab('results');
+    });
+  }
+
+  // デフォルトタブ設定
+  document.body.classList.add('tab-active-inputs');
+
+  // ウィンドウリサイズ時のグラフリサイズ自動追従
+  window.addEventListener('resize', () => {
+    if (mainChartInstance) {
+      mainChartInstance.resize();
+    }
+  });
+
+  // Lucideアイコン初期化
+  if (window.lucide) {
+    window.lucide.createIcons();
+  }
+});
+
+function updateThemeIcon(theme) {
+  const iconLight = document.getElementById('icon-theme-light');
+  const iconDark = document.getElementById('icon-theme-dark');
+  if (iconLight && iconDark) {
+    if (theme === 'light') {
+      iconLight.classList.remove('hidden');
+      iconDark.classList.add('hidden');
+    } else {
+      iconLight.classList.add('hidden');
+      iconDark.classList.remove('hidden');
+    }
+  }
+}
+
+  </script>
+</body>
+</html>
