@@ -60,7 +60,7 @@ const DEFAULT_STATE = {
   withdraw: {
     startAge: 65,        // 歳から取崩し開始
     type: 'fixed-amount', // 'fixed-amount' | 'fixed-rate'
-    monthly: 20.0,       // 万円/月 (定額取崩し時)
+    monthly: 30.0,       // 万円/月 (定額取崩し時)
     rate: 4.0            // %/年 (定率取崩し時)
   },
   chartType: 'stacked',  // 'stacked' | 'cashflow' | 'lines'
@@ -553,24 +553,75 @@ function updateOldNisaUIBadges() {
 }
 
 /**
+ * フォーム上部バッジ・サマリーラベルの更新 (リアルタイム同期)
+ */
+function updateUIBadges() {
+  // 基本プロファイル
+  setText('disp-current-age', state.currentAge);
+  setText('disp-end-age', state.endAge);
+
+  // ① 特定口座
+  setText('disp-taxable-initial', formatMoneyBadge(state.accounts.taxable.initial));
+  setText('disp-taxable-rate', state.accounts.taxable.rate);
+  setText('sum-taxable', `初期 ${formatMoneyBadge(state.accounts.taxable.initial)}万`);
+
+  // ② 旧NISA
+  setText('disp-oldnisa-rate', state.accounts.oldNisa.rate);
+  setText('disp-oldnisa-base-year', state.accounts.oldNisa.baseYear);
+
+  // ③ 新NISA
+  setText('disp-newnisa-initial', formatMoneyBadge(state.accounts.newNisa.initial));
+  setText('disp-newnisa-rate', state.accounts.newNisa.rate);
+  setText('sum-newnisa', `初期 ${formatMoneyBadge(state.accounts.newNisa.initial)}万`);
+
+  // ④ DC
+  setText('disp-dc-initial', formatMoneyBadge(state.accounts.dc.initial));
+  setText('disp-dc-monthly', state.accounts.dc.monthly);
+  setText('disp-dc-rate', state.accounts.dc.rate);
+  setText('disp-dc-receive-age', state.accounts.dc.receiveAge);
+  setText('disp-dc-years-past', state.accounts.dc.yearsPast);
+  setText('sum-dc', `初期 ${formatMoneyBadge(state.accounts.dc.initial)}万 / 拠出 ${state.accounts.dc.monthly}万`);
+
+  // ⑤ 株式現物
+  setText('disp-stock-initial', formatMoneyBadge(state.accounts.stock.initial));
+  setText('disp-stock-monthly', state.accounts.stock.monthly);
+  setText('disp-stock-rate', state.accounts.stock.rate);
+  setText('sum-stock', `初期 ${formatMoneyBadge(state.accounts.stock.initial)}万 / 買増 ${state.accounts.stock.monthly}万`);
+
+  // 公的年金
+  setText('disp-pension-start-age', state.pension.startAge);
+  setText('disp-pension-monthly', state.pension.monthly);
+  setText('disp-pension-annual', Math.round(state.pension.monthly * 12));
+
+  // 取り崩し
+  setText('disp-withdraw-start-age', state.withdraw.startAge);
+  setText('disp-withdraw-monthly', state.withdraw.monthly);
+  setText('disp-withdraw-annual', Math.round(state.withdraw.monthly * 12));
+  setText('disp-withdraw-rate', state.withdraw.rate);
+
+  // NISA Progress
+  const nisaInitial = parseFloat(state.accounts.newNisa.initial) || 0;
+  const fillPct = Math.min(100, Math.round((nisaInitial / NISA_LIFETIME_LIMIT) * 100));
+  const elFill = document.getElementById('nisa-limit-fill');
+  if (elFill) elFill.style.width = `${fillPct}%`;
+  setText('nisa-limit-fill-info', `${formatMoneyBadge(nisaInitial)}万 / 1,800万 (${fillPct}%)`);
+}
+
+/**
  * フォーム要素とStateのバインディング
  */
 function syncStateToUI() {
   // 基本プロファイル
   setInputValue('range-current-age', state.currentAge);
   setInputValue('input-current-age', state.currentAge);
-  setText('disp-current-age', state.currentAge);
 
   setInputValue('range-end-age', state.endAge);
   setInputValue('input-end-age', state.endAge);
-  setText('disp-end-age', state.endAge);
 
   // ① 特定口座
   setInputValue('range-taxable-initial', state.accounts.taxable.initial);
   setInputValue('taxable-initial', state.accounts.taxable.initial);
-  setText('disp-taxable-initial', formatMoneyBadge(state.accounts.taxable.initial));
   setInputValue('taxable-rate', state.accounts.taxable.rate);
-  setText('disp-taxable-rate', state.accounts.taxable.rate);
 
   // 特定口座 3パターン (期間・金額)
   const tPatterns = state.accounts.taxable.patterns || [];
@@ -579,7 +630,6 @@ function syncStateToUI() {
     setInputValue(`taxable-${pKey}-years`, p.years);
     setInputValue(`taxable-${pKey}-monthly`, p.monthly);
   });
-  setText('sum-taxable', `初期 ${formatMoneyBadge(state.accounts.taxable.initial)}万`);
 
   // ② 旧NISA
   setInputValue('oldnisa-rate', state.accounts.oldNisa.rate);
@@ -596,9 +646,7 @@ function syncStateToUI() {
   // ③ 新NISA
   setInputValue('range-newnisa-initial', state.accounts.newNisa.initial);
   setInputValue('newnisa-initial', state.accounts.newNisa.initial);
-  setText('disp-newnisa-initial', formatMoneyBadge(state.accounts.newNisa.initial));
   setInputValue('newnisa-rate', state.accounts.newNisa.rate);
-  setText('disp-newnisa-rate', state.accounts.newNisa.rate);
 
   // 新NISA 3パターン (期間・金額)
   const nPatterns = state.accounts.newNisa.patterns || [];
@@ -607,43 +655,28 @@ function syncStateToUI() {
     setInputValue(`newnisa-${pKey}-years`, p.years);
     setInputValue(`newnisa-${pKey}-monthly`, p.monthly);
   });
-  setText('sum-newnisa', `初期 ${formatMoneyBadge(state.accounts.newNisa.initial)}万`);
 
   // ④ DC
   setInputValue('range-dc-initial', state.accounts.dc.initial);
   setInputValue('dc-initial', state.accounts.dc.initial);
-  setText('disp-dc-initial', formatMoneyBadge(state.accounts.dc.initial));
   setInputValue('dc-monthly', state.accounts.dc.monthly);
-  setText('disp-dc-monthly', state.accounts.dc.monthly);
   setInputValue('dc-rate', state.accounts.dc.rate);
-  setText('disp-dc-rate', state.accounts.dc.rate);
   setInputValue('dc-receive-age', state.accounts.dc.receiveAge);
-  setText('disp-dc-receive-age', state.accounts.dc.receiveAge);
   setInputValue('dc-years-past', state.accounts.dc.yearsPast);
-  setText('disp-dc-years-past', state.accounts.dc.yearsPast);
-  setText('sum-dc', `初期 ${formatMoneyBadge(state.accounts.dc.initial)}万 / 拠出 ${state.accounts.dc.monthly}万`);
 
   // ⑤ 株式現物
   setInputValue('range-stock-initial', state.accounts.stock.initial);
   setInputValue('stock-initial', state.accounts.stock.initial);
-  setText('disp-stock-initial', formatMoneyBadge(state.accounts.stock.initial));
   setInputValue('stock-monthly', state.accounts.stock.monthly);
-  setText('disp-stock-monthly', state.accounts.stock.monthly);
   setInputValue('stock-rate', state.accounts.stock.rate);
-  setText('disp-stock-rate', state.accounts.stock.rate);
-  setText('sum-stock', `初期 ${formatMoneyBadge(state.accounts.stock.initial)}万 / 買増 ${state.accounts.stock.monthly}万`);
 
   // 公的年金
   setInputValue('pension-start-age', state.pension.startAge);
-  setText('disp-pension-start-age', state.pension.startAge);
   setInputValue('pension-monthly', state.pension.monthly);
-  setText('disp-pension-monthly', state.pension.monthly);
-  setText('disp-pension-annual', Math.round(state.pension.monthly * 12));
 
   // 取り崩し
   setInputValue('range-withdraw-start-age', state.withdraw.startAge);
   setInputValue('withdraw-start-age', state.withdraw.startAge);
-  setText('disp-withdraw-start-age', state.withdraw.startAge);
 
   const radioType = document.querySelector(`input[name="withdraw-type"][value="${state.withdraw.type}"]`);
   if (radioType) radioType.checked = true;
@@ -662,19 +695,11 @@ function syncStateToUI() {
 
   setInputValue('range-withdraw-monthly', state.withdraw.monthly);
   setInputValue('withdraw-monthly', state.withdraw.monthly);
-  setText('disp-withdraw-monthly', state.withdraw.monthly);
-  setText('disp-withdraw-annual', Math.round(state.withdraw.monthly * 12));
-
   setInputValue('range-withdraw-rate', state.withdraw.rate);
   setInputValue('withdraw-rate', state.withdraw.rate);
-  setText('disp-withdraw-rate', state.withdraw.rate);
 
-  // NISA Progress
-  const nisaInitial = parseFloat(state.accounts.newNisa.initial) || 0;
-  const fillPct = Math.min(100, Math.round((nisaInitial / NISA_LIFETIME_LIMIT) * 100));
-  const elFill = document.getElementById('nisa-limit-fill');
-  if (elFill) elFill.style.width = `${fillPct}%`;
-  setText('nisa-limit-fill-info', `${formatMoneyBadge(nisaInitial)}万 / 1,800万 (${fillPct}%)`);
+  // バッジ更新
+  updateUIBadges();
 
   // 実質計算期間バッジ更新
   updateEffectivePatternBadges();
@@ -788,6 +813,7 @@ function readStateFromUI() {
  */
 function updateSimulation() {
   readStateFromUI();
+  updateUIBadges();
   const sim = runSimulation(state);
 
   // 実質計算期間バッジ更新
@@ -1577,22 +1603,70 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 4. イベントリスナー登録
 
-  // 入力変更リスナー (スライダー & 数値入力)
+  const RANGE_TO_INPUT = {
+    'range-current-age': 'input-current-age',
+    'range-end-age': 'input-end-age',
+    'range-taxable-initial': 'taxable-initial',
+    'range-newnisa-initial': 'newnisa-initial',
+    'range-dc-initial': 'dc-initial',
+    'range-stock-initial': 'stock-initial',
+    'range-withdraw-start-age': 'withdraw-start-age',
+    'range-withdraw-monthly': 'withdraw-monthly',
+    'range-withdraw-rate': 'withdraw-rate',
+  };
+
+  function updateSliderFill(rangeEl) {
+    if (!rangeEl) return;
+    const min = parseFloat(rangeEl.min) || 0;
+    const max = parseFloat(rangeEl.max) || 100;
+    const val = parseFloat(rangeEl.value) || 0;
+    const pct = Math.min(100, Math.max(0, ((val - min) / (max - min)) * 100));
+    rangeEl.style.background = `linear-gradient(to right, var(--col-primary) 0%, var(--col-primary) ${pct}%, var(--border-color) ${pct}%, var(--border-color) 100%)`;
+  }
+
+  function updateAllSliderFills() {
+    Object.keys(RANGE_TO_INPUT).forEach(rId => {
+      const el = document.getElementById(rId);
+      if (el) updateSliderFill(el);
+    });
+  }
+
+  // スライダー初期塗りつぶし
+  updateAllSliderFills();
+
+  // 各スライダーと数値入力の個別直接イベントバインド (100% 確実な連動)
+  Object.keys(RANGE_TO_INPUT).forEach(rangeId => {
+    const rangeEl = document.getElementById(rangeId);
+    const numId = RANGE_TO_INPUT[rangeId];
+    const numEl = document.getElementById(numId);
+
+    if (rangeEl) {
+      const onRangeChange = (e) => {
+        if (numEl) numEl.value = rangeEl.value;
+        updateSliderFill(rangeEl);
+        updateSimulation();
+      };
+      rangeEl.addEventListener('input', onRangeChange);
+      rangeEl.addEventListener('change', onRangeChange);
+    }
+
+    if (numEl) {
+      const onNumChange = (e) => {
+        if (rangeEl) {
+          rangeEl.value = numEl.value;
+          updateSliderFill(rangeEl);
+        }
+        updateSimulation();
+      };
+      numEl.addEventListener('input', onNumChange);
+      numEl.addEventListener('change', onNumChange);
+    }
+  });
+
+  // 全体フォーム変更リスナー (他の全入力フィールド・ラジオ対応)
   const form = document.getElementById('sim-form');
   if (form) {
     form.addEventListener('input', (e) => {
-      // 双方向スライダーと数値入力の同期
-      const id = e.target.id;
-      if (id.startsWith('range-')) {
-        const numId = id.replace('range-', '');
-        const targetInput = document.getElementById(numId) || document.getElementById('input-' + numId);
-        if (targetInput) targetInput.value = e.target.value;
-      } else if (e.target.classList.contains('num-input')) {
-        const rangeId = 'range-' + id.replace('input-', '');
-        const targetRange = document.getElementById(rangeId);
-        if (targetRange) targetRange.value = e.target.value;
-      }
-
       // 取り崩しラジオ切り替え時の表示制御
       if (e.target.name === 'withdraw-type') {
         if (e.target.value === 'fixed-amount') {
@@ -1608,6 +1682,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
+      updateSimulation();
+    });
+
+    form.addEventListener('change', (e) => {
       updateSimulation();
     });
   }
