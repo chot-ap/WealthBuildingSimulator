@@ -1341,7 +1341,7 @@ function importSettingsFromJSON(e) {
  */
 async function exportTableCSV() {
   const sim = runSimulation(state);
-  let csv = '年齢,経過年,総資産額(万円),年間積立(万円),年間運用益(万円),公的年金(万円),DC受取移管(万円),旧NISA移管(万円),特定口座(万円),旧NISA(万円),新NISA(万円),確定拠出年金(万円),株式現物(万円),年間取崩し(万円)\n';
+  let csv = `年齢,経過年,総資産額(万円),年間積立(万円),年間運用益(万円),公的年金(万円),DC受取移管(万円),旧NISA移管(万円),特定口座(万円),旧NISA(万円),新NISA(万円),確定拠出年金(万円),株式現物(万円),年間取崩し(万円)\n`;
 
   sim.records.forEach(r => {
     csv += `${r.age},${r.year},${r.totalAssets},${r.annualContribute},${r.annualGain},${r.annualPension},${r.dcTransfer},${r.oldNisaTransfer},${r.taxable},${r.oldNisa},${r.newNisa},${r.dc},${r.stock},${r.annualWithdraw}\n`;

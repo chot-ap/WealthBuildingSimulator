@@ -28,14 +28,14 @@ def build_single_file():
         style_tag = f"<style id=\"inline-styles\">\n{css_content}\n  </style>"
         html_content = html_content.replace('<link rel="stylesheet" href="styles.css">', style_tag)
     elif '<style id="inline-styles">' in html_content:
-        html_content = re.sub(r'<style id="inline-styles">[\s\S]*?</style>', f'<style id="inline-styles">\n{css_content}\n  </style>', html_content)
+        html_content = re.sub(r'<style id="inline-styles">[\s\S]*?</style>', lambda m: f'<style id="inline-styles">\n{css_content}\n  </style>', html_content)
 
     # 2. Replace <script src="app.js"></script> or existing <script id="inline-app">...</script>
     if '<script src="app.js"></script>' in html_content:
         script_tag = f"<script id=\"inline-app\">\n{js_content}\n  </script>"
         html_content = html_content.replace('<script src="app.js"></script>', script_tag)
     elif '<script id="inline-app">' in html_content:
-        html_content = re.sub(r'<script id="inline-app">[\s\S]*?</script>', f'<script id="inline-app">\n{js_content}\n  </script>', html_content)
+        html_content = re.sub(r'<script id="inline-app">[\s\S]*?</script>', lambda m: f'<script id="inline-app">\n{js_content}\n  </script>', html_content)
 
     with open(index_path, 'w', encoding='utf-8') as f:
         f.write(html_content)
