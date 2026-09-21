@@ -2190,14 +2190,37 @@
       }
     });
 
-    // JSON保存
-    document.getElementById('btn-save-loan').addEventListener('click', () => {
+    // JSON保存（保存場所指定ダイアログ対応）
+    document.getElementById('btn-save-loan').addEventListener('click', async () => {
       const jsonStr = JSON.stringify(state, null, 2);
+      const defaultFileName = `nomura_web_loan_settings_${new Date().toISOString().slice(0, 10)}.json`;
+
+      // モダンブラウザの保存先指定ダイアログ (File System Access API)
+      if (typeof window.showSaveFilePicker === 'function') {
+        try {
+          const handle = await window.showSaveFilePicker({
+            suggestedName: defaultFileName,
+            types: [{
+              description: 'JSON設定ファイル (*.json)',
+              accept: { 'application/json': ['.json'] }
+            }]
+          });
+          const writable = await handle.createWritable();
+          await writable.write(jsonStr);
+          await writable.close();
+          return;
+        } catch (err) {
+          if (err.name === 'AbortError') return; // ユーザーキャンセル時
+          console.warn('showSaveFilePicker failed, falling back to download link:', err);
+        }
+      }
+
+      // フォールバック（未対応ブラウザ等）
       const blob = new Blob([jsonStr], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `nomura_web_loan_settings_${new Date().toISOString().slice(0, 10)}.json`;
+      a.download = defaultFileName;
       a.click();
       URL.revokeObjectURL(url);
     });
@@ -2229,8 +2252,8 @@
       reader.readAsText(file);
     });
 
-    // CSVエクスポート
-    document.getElementById('btn-export-csv').addEventListener('click', () => {
+    // CSVエクスポート（保存場所指定ダイアログ対応）
+    document.getElementById('btn-export-csv').addEventListener('click', async () => {
       const sim = calculateLoanSimulation();
       let csv = '\uFEFF時期,期首残高(円),発生利息(円),期末残高(円),担保評価額(円),担保充足率(%),健全性判定\n';
 
@@ -2239,11 +2262,33 @@
         csv += `"${item.label}",${Math.round(item.startBalance)},${Math.round(item.interest)},${Math.round(item.endBalance)},${Math.round(item.collateralEval)},${item.coverageRatio.toFixed(2)},"${judge}"\n`;
       });
 
+      const defaultFileName = `nomura_loan_simulation_${new Date().toISOString().slice(0, 10)}.csv`;
+
+      // モダンブラウザの保存先指定ダイアログ
+      if (typeof window.showSaveFilePicker === 'function') {
+        try {
+          const handle = await window.showSaveFilePicker({
+            suggestedName: defaultFileName,
+            types: [{
+              description: 'CSVファイル (*.csv)',
+              accept: { 'text/csv': ['.csv'] }
+            }]
+          });
+          const writable = await handle.createWritable();
+          await writable.write(csv);
+          await writable.close();
+          return;
+        } catch (err) {
+          if (err.name === 'AbortError') return; // ユーザーキャンセル時
+          console.warn('showSaveFilePicker failed, falling back to download link:', err);
+        }
+      }
+
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `nomura_loan_simulation_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.download = defaultFileName;
       a.click();
       URL.revokeObjectURL(url);
     });
