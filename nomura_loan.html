@@ -2060,6 +2060,8 @@
     });
 
     // ポートフォリオテーブルの変更イベント（イベント委譲）
+    const pTbody = document.getElementById('portfolio-tbody');
+
     // 入力値の正規化関数（全角数字やカンマに対応）
     function parseManInput(str) {
       if (typeof str !== 'string') return Number(str) || 0;
@@ -2067,46 +2069,48 @@
       return Math.max(0, Number(normalized) || 0);
     }
 
-    pTbody.addEventListener('input', (e) => {
-      const target = e.target;
-      const idx = target.getAttribute('data-idx');
-      const field = target.getAttribute('data-field');
-      if (idx !== null && field && state.portfolio[idx]) {
-        if (field === 'value') {
-          state.portfolio[idx].value = parseManInput(target.value);
-          refreshAll(true); // テーブルDOMを再生成せず、フォーカスを維持したまま全計算更新！
-        } else if (field === 'ratio') {
-          state.portfolio[idx].ratio = Number(target.value);
-          refreshAll(true);
-        } else {
-          state.portfolio[idx].name = target.value;
-        }
-      }
-    });
-
-    // フォーカスが外れた時、正規化された数値文字列に整える
-    pTbody.addEventListener('blur', (e) => {
-      const target = e.target;
-      if (target && target.getAttribute('data-field') === 'value') {
+    if (pTbody) {
+      pTbody.addEventListener('input', (e) => {
+        const target = e.target;
         const idx = target.getAttribute('data-idx');
-        if (idx !== null && state.portfolio[idx]) {
-          target.value = state.portfolio[idx].value;
+        const field = target.getAttribute('data-field');
+        if (idx !== null && field && state.portfolio[idx]) {
+          if (field === 'value') {
+            state.portfolio[idx].value = parseManInput(target.value);
+            refreshAll(true); // テーブルDOMを再生成せず、フォーカスを維持したまま全計算更新！
+          } else if (field === 'ratio') {
+            state.portfolio[idx].ratio = Number(target.value);
+            refreshAll(true);
+          } else {
+            state.portfolio[idx].name = target.value;
+          }
         }
-      }
-    }, true);
+      });
 
-    pTbody.addEventListener('click', (e) => {
-      const btn = e.target.closest('[data-delete-idx]');
-      if (btn) {
-        const idx = Number(btn.getAttribute('data-delete-idx'));
-        if (state.portfolio.length > 1) {
-          state.portfolio.splice(idx, 1);
-          refreshAll();
-        } else {
-          alert('最低1件の担保銘柄が必要です。');
+      // フォーカスが外れた時、正規化された数値文字列に整える
+      pTbody.addEventListener('blur', (e) => {
+        const target = e.target;
+        if (target && target.getAttribute('data-field') === 'value') {
+          const idx = target.getAttribute('data-idx');
+          if (idx !== null && state.portfolio[idx]) {
+            target.value = state.portfolio[idx].value;
+          }
         }
-      }
-    });
+      }, true);
+
+      pTbody.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-delete-idx]');
+        if (btn) {
+          const idx = Number(btn.getAttribute('data-delete-idx'));
+          if (state.portfolio.length > 1) {
+            state.portfolio.splice(idx, 1);
+            refreshAll();
+          } else {
+            alert('最低1件の担保銘柄が必要です。');
+          }
+        }
+      });
+    }
 
     // 銘柄追加ボタン
     document.getElementById('btn-add-asset').addEventListener('click', () => {
