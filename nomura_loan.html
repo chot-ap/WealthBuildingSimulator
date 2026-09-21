@@ -1,0 +1,2162 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>野村Webローン 担保健全性＆元加シミュレーター</title>
+  <meta name="description" content="野村信託銀行の有価証券担保ローン「野村Webローン」の利用状況管理・担保充足率（LTV）・利息の元本加算（元加：半年複利）シミュレーションダッシュボード。">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    /* ==========================================================================
+       Design System & Theme Tokens
+       ========================================================================== */
+    :root {
+      --bg-app: #090d16;
+      --bg-panel: rgba(16, 22, 36, 0.78);
+      --bg-panel-solid: #101624;
+      --bg-card: rgba(22, 31, 50, 0.7);
+      --bg-card-hover: rgba(30, 42, 68, 0.85);
+      --bg-input: #0e1422;
+      --bg-input-focus: #141c2e;
+      --border-color: rgba(255, 255, 255, 0.08);
+      --border-highlight: rgba(99, 102, 241, 0.35);
+
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+
+      --col-primary: #6366f1;
+      --col-primary-hover: #4f46e5;
+      --col-primary-subtle: rgba(99, 102, 241, 0.15);
+
+      --col-emerald: #10b981;
+      --col-emerald-subtle: rgba(16, 185, 129, 0.15);
+      --col-amber: #f59e0b;
+      --col-amber-subtle: rgba(245, 158, 11, 0.15);
+      --col-orange: #f97316;
+      --col-orange-subtle: rgba(249, 115, 22, 0.15);
+      --col-rose: #f43f5e;
+      --col-rose-subtle: rgba(244, 63, 94, 0.18);
+      --col-cyan: #06b6d4;
+      --col-cyan-subtle: rgba(6, 182, 212, 0.15);
+
+      --font-sans: 'Outfit', 'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-num: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+
+      --glass-blur: blur(16px);
+      --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.3);
+      --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.4);
+      --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5);
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-xl: 20px;
+    }
+
+    [data-theme="light"] {
+      --bg-app: #f1f5f9;
+      --bg-panel: rgba(255, 255, 255, 0.92);
+      --bg-panel-solid: #ffffff;
+      --bg-card: rgba(255, 255, 255, 0.96);
+      --bg-card-hover: #ffffff;
+      --bg-input: #f8fafc;
+      --bg-input-focus: #ffffff;
+      --border-color: rgba(0, 0, 0, 0.08);
+      --border-highlight: rgba(99, 102, 241, 0.45);
+
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #94a3b8;
+
+      --col-primary-subtle: rgba(99, 102, 241, 0.1);
+      --col-emerald-subtle: rgba(16, 185, 129, 0.1);
+      --col-amber-subtle: rgba(245, 158, 11, 0.1);
+      --col-orange-subtle: rgba(249, 115, 22, 0.1);
+      --col-rose-subtle: rgba(244, 63, 94, 0.1);
+      --col-cyan-subtle: rgba(6, 182, 212, 0.1);
+
+      --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.04);
+      --shadow-md: 0 6px 16px rgba(0, 0, 0, 0.06);
+      --shadow-lg: 0 12px 28px rgba(0, 0, 0, 0.09);
+    }
+
+    /* Base Reset */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-app);
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.5;
+      padding: 0.75rem 1rem 3rem;
+      transition: background-color 0.25s ease, color 0.25s ease;
+      background-image: 
+        radial-gradient(ellipse at 15% 10%, rgba(99, 102, 241, 0.08), transparent 40%),
+        radial-gradient(ellipse at 85% 80%, rgba(6, 182, 212, 0.07), transparent 40%);
+      background-attachment: fixed;
+    }
+
+    .app-container {
+      max-width: 1480px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    /* ==========================================================================
+       Header Styles & Navigation Bar
+       ========================================================================== */
+    .app-header {
+      background: var(--bg-panel);
+      backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 0.85rem 1.25rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .header-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+    }
+
+    .brand-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-md);
+      background: linear-gradient(135deg, #4338ca, #6366f1, #06b6d4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #ffffff;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+      flex-shrink: 0;
+    }
+
+    .brand-text h1 {
+      font-size: 1.2rem;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      line-height: 1.2;
+    }
+
+    .badge-nomura {
+      background: linear-gradient(135deg, #dc2626, #b91c1c);
+      color: #ffffff;
+      font-size: 0.68rem;
+      font-weight: 800;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      letter-spacing: 0.04em;
+    }
+
+    .brand-subtitle {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      margin-top: 0.15rem;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45rem;
+      padding: 0.55rem 0.95rem;
+      font-size: 0.82rem;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-color);
+      background: var(--bg-card);
+      color: var(--text-primary);
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.18s ease;
+      min-height: 38px;
+    }
+
+    .btn:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-highlight);
+      transform: translateY(-1px);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn-nav-main {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(6, 182, 212, 0.2));
+      border: 1px solid rgba(99, 102, 241, 0.45);
+      color: #818cf8;
+      font-weight: 700;
+    }
+
+    [data-theme="light"] .btn-nav-main {
+      color: #4f46e5;
+    }
+
+    .btn-nav-main:hover {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(6, 182, 212, 0.3));
+      box-shadow: 0 0 14px rgba(99, 102, 241, 0.25);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #4f46e5, #6366f1);
+      color: #ffffff;
+      border: none;
+      box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
+    }
+
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #4338ca, #4f46e5);
+      color: #ffffff;
+    }
+
+    .btn-icon {
+      width: 38px;
+      height: 38px;
+      padding: 0;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-color);
+      background: var(--bg-card);
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.18s ease;
+    }
+
+    .btn-icon:hover {
+      color: var(--text-primary);
+      border-color: var(--border-highlight);
+      background: var(--bg-card-hover);
+    }
+
+    /* ==========================================================================
+       KPI Summary Cards Grid
+       ========================================================================== */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 0.85rem;
+    }
+
+    .kpi-card {
+      background: var(--bg-panel);
+      backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 1rem 1.15rem;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 0.6rem;
+      box-shadow: var(--shadow-sm);
+      transition: border-color 0.2s ease, transform 0.2s ease;
+    }
+
+    .kpi-card:hover {
+      border-color: var(--border-highlight);
+      transform: translateY(-2px);
+    }
+
+    .kpi-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .kpi-label {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .kpi-icon-badge {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+    }
+
+    .kpi-main-val {
+      font-family: var(--font-num);
+      font-size: 1.65rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      color: var(--text-primary);
+      display: flex;
+      align-items: baseline;
+      gap: 0.3rem;
+    }
+
+    .kpi-unit {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .kpi-footer {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-top: 1px dashed var(--border-color);
+      padding-top: 0.45rem;
+    }
+
+    /* 充足率ステータスバッジ */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .badge-safe {
+      background: var(--col-emerald-subtle);
+      color: var(--col-emerald);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .badge-warning {
+      background: var(--col-amber-subtle);
+      color: var(--col-amber);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .badge-alert {
+      background: var(--col-orange-subtle);
+      color: var(--col-orange);
+      border: 1px solid rgba(249, 115, 22, 0.3);
+    }
+
+    .badge-danger {
+      background: var(--col-rose-subtle);
+      color: var(--col-rose);
+      border: 1px solid rgba(244, 63, 94, 0.4);
+      animation: pulseAlert 1.5s infinite;
+    }
+
+    @keyframes pulseAlert {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.03); opacity: 0.85; }
+    }
+
+    /* 健全性メーターバー */
+    .meter-container {
+      width: 100%;
+      height: 7px;
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 0.2rem;
+      position: relative;
+    }
+
+    .meter-bar {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.4s ease, background-color 0.4s ease;
+    }
+
+    /* ==========================================================================
+       Mobile Navigation Tabs (Switch views on smartphone)
+       ========================================================================== */
+    .mobile-tab-nav {
+      display: none;
+      background: var(--bg-panel);
+      backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 0.35rem;
+      gap: 0.35rem;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .mobile-tab-btn {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.25rem;
+      padding: 0.6rem 0.25rem;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+      border: none;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      cursor: pointer;
+      min-height: 48px;
+      transition: all 0.18s ease;
+    }
+
+    .mobile-tab-btn.active {
+      background: var(--bg-card);
+      color: var(--col-primary);
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--border-highlight);
+    }
+
+    [data-theme="light"] .mobile-tab-btn.active {
+      background: #ffffff;
+      color: #4f46e5;
+    }
+
+    /* ==========================================================================
+       Workspace Layout (2 Columns on PC)
+       ========================================================================== */
+    .workspace-layout {
+      display: grid;
+      grid-template-columns: 460px 1fr;
+      gap: 1.25rem;
+      align-items: start;
+    }
+
+    .panel-card {
+      background: var(--bg-panel);
+      backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .panel-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .panel-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--text-primary);
+    }
+
+    /* Form Controls */
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+    }
+
+    .form-label-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+
+    .form-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .form-badge-val {
+      font-family: var(--font-num);
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--col-primary);
+    }
+
+    .input-range-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    input[type="range"] {
+      flex: 1;
+      height: 6px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: rgba(255, 255, 255, 0.12);
+      border-radius: 999px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    [data-theme="light"] input[type="range"] {
+      background: rgba(0, 0, 0, 0.12);
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #6366f1;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(99, 102, 241, 0.6);
+      transition: transform 0.12s ease;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+    }
+
+    .input-number-box {
+      width: 110px;
+      padding: 0.45rem 0.65rem;
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-family: var(--font-num);
+      font-size: 0.92rem;
+      font-weight: 700;
+      text-align: right;
+      transition: border-color 0.18s ease;
+      min-height: 40px;
+    }
+
+    .input-number-box:focus {
+      outline: none;
+      border-color: var(--col-primary);
+      background: var(--bg-input-focus);
+    }
+
+    .quick-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      margin-top: 0.2rem;
+    }
+
+    .btn-quick {
+      padding: 0.25rem 0.55rem;
+      font-size: 0.72rem;
+      font-weight: 600;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      min-height: 30px;
+    }
+
+    .btn-quick:hover {
+      background: var(--col-primary-subtle);
+      color: var(--col-primary);
+      border-color: var(--col-primary);
+    }
+
+    /* Portfolio Table */
+    .portfolio-section {
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+    }
+
+    .portfolio-table-wrap {
+      overflow-x: auto;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-color);
+      background: var(--bg-card);
+    }
+
+    .portfolio-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.78rem;
+      text-align: left;
+    }
+
+    .portfolio-table th {
+      background: rgba(0, 0, 0, 0.2);
+      padding: 0.55rem 0.65rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--border-color);
+      white-space: nowrap;
+    }
+
+    [data-theme="light"] .portfolio-table th {
+      background: rgba(0, 0, 0, 0.04);
+    }
+
+    .portfolio-table td {
+      padding: 0.55rem 0.65rem;
+      border-bottom: 1px solid var(--border-color);
+      vertical-align: middle;
+    }
+
+    .portfolio-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .col-asset-name input {
+      width: 100%;
+      min-width: 90px;
+      padding: 0.35rem 0.5rem;
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      color: var(--text-primary);
+      font-size: 0.78rem;
+    }
+
+    .col-asset-val input {
+      width: 95px;
+      padding: 0.35rem 0.5rem;
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      color: var(--text-primary);
+      font-family: var(--font-num);
+      font-size: 0.82rem;
+      font-weight: 700;
+      text-align: right;
+    }
+
+    .col-asset-ratio select {
+      padding: 0.35rem 0.4rem;
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      color: var(--text-primary);
+      font-size: 0.78rem;
+      cursor: pointer;
+    }
+
+    .col-asset-eval {
+      font-family: var(--font-num);
+      font-weight: 700;
+      text-align: right;
+      color: var(--col-cyan);
+      white-space: nowrap;
+    }
+
+    .btn-delete-row {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 0.3rem;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn-delete-row:hover {
+      color: var(--col-rose);
+      background: var(--col-rose-subtle);
+    }
+
+    .portfolio-summary-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg-panel-solid);
+      padding: 0.65rem 0.85rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-color);
+      font-size: 0.8rem;
+    }
+
+    .summary-item strong {
+      font-family: var(--font-num);
+      font-size: 0.95rem;
+      color: var(--text-primary);
+    }
+
+    /* Right Panel: Charts, Tables & Stress Test */
+    .right-workspace {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    /* Chart Card */
+    .chart-panel {
+      position: relative;
+    }
+
+    .chart-container {
+      position: relative;
+      height: 380px;
+      width: 100%;
+    }
+
+    /* Simulation Table */
+    .sim-table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      background: var(--bg-card);
+      max-height: 420px;
+    }
+
+    .sim-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+      text-align: right;
+    }
+
+    .sim-table th {
+      background: var(--bg-panel-solid);
+      position: sticky;
+      top: 0;
+      padding: 0.75rem 0.85rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+      border-bottom: 2px solid var(--border-color);
+      z-index: 2;
+      white-space: nowrap;
+    }
+
+    .sim-table td {
+      padding: 0.65rem 0.85rem;
+      border-bottom: 1px solid var(--border-color);
+      white-space: nowrap;
+      font-family: var(--font-num);
+    }
+
+    .sim-table tr:hover td {
+      background: var(--bg-card-hover);
+    }
+
+    .sim-table tr.row-danger td {
+      background: rgba(244, 63, 94, 0.12) !important;
+    }
+
+    .sim-table tr.row-danger td:first-child {
+      border-left: 3px solid var(--col-rose);
+    }
+
+    .sim-table td.text-left {
+      text-align: left;
+      font-family: var(--font-sans);
+    }
+
+    .sim-table td.text-center {
+      text-align: center;
+    }
+
+    /* Stress Test Matrix */
+    .stress-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 0.75rem;
+    }
+
+    .stress-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 0.85rem 0.95rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+      transition: all 0.2s ease;
+    }
+
+    .stress-card:hover {
+      border-color: var(--border-highlight);
+      transform: translateY(-2px);
+    }
+
+    .stress-drop-tag {
+      font-size: 0.72rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .stress-eval-val {
+      font-family: var(--font-num);
+      font-size: 1.15rem;
+      font-weight: 800;
+    }
+
+    .stress-ratio-val {
+      font-size: 0.8rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* Explanation Collapsible */
+    .info-box {
+      background: rgba(99, 102, 241, 0.08);
+      border: 1px solid rgba(99, 102, 241, 0.25);
+      border-radius: var(--radius-md);
+      padding: 0.85rem 1.1rem;
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .info-box h3 {
+      font-size: 0.9rem;
+      color: #818cf8;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    [data-theme="light"] .info-box h3 {
+      color: #4f46e5;
+    }
+
+    .info-list {
+      padding-left: 1.25rem;
+      line-height: 1.6;
+    }
+
+    /* Utility */
+    .hidden {
+      display: none !important;
+    }
+
+    /* ==========================================================================
+       Smartphone / Tablet Responsive Media Queries
+       ========================================================================== */
+    @media (max-width: 1080px) {
+      .workspace-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .mobile-tab-nav {
+        display: flex;
+        position: sticky;
+        top: 0.5rem;
+        z-index: 50;
+      }
+
+      /* In mobile tab mode, hide other panels based on active tab */
+      .mobile-tab-content {
+        display: none;
+      }
+
+      .mobile-tab-content.tab-active {
+        display: block;
+      }
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding: 0.5rem 0.5rem 3rem;
+      }
+
+      .app-header {
+        padding: 0.75rem 0.85rem;
+      }
+
+      .brand-text h1 {
+        font-size: 1.05rem;
+      }
+
+      .kpi-main-val {
+        font-size: 1.35rem;
+      }
+
+      .chart-container {
+        height: 280px;
+      }
+
+      .panel-card {
+        padding: 1rem 0.85rem;
+      }
+
+      .input-number-box {
+        width: 95px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-container">
+
+  <!-- ========================================================================
+       Header & Navigation
+       ======================================================================== -->
+  <header class="app-header">
+    <div class="header-brand">
+      <div class="brand-icon">
+        <i data-lucide="shield-alert"></i>
+      </div>
+      <div class="brand-text">
+        <h1>
+          野村Webローン 健全性・元加シミュレーター
+          <span class="badge-nomura">担保LTV</span>
+        </h1>
+        <p class="brand-subtitle">有価証券担保ローン 利息元加（半年複利）＆ ロスカット健全性ダッシュボード</p>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <!-- 資産運用シミュレーターへの復帰リンク -->
+      <a href="index.html" class="btn btn-nav-main" title="資産運用シミュレーター PRO へ移動">
+        <i data-lucide="trending-up"></i>
+        <span>資産運用シミュレーターへ</span>
+      </a>
+
+      <!-- データ保存/読込 -->
+      <button id="btn-save-loan" class="btn" title="ローン設定を保存">
+        <i data-lucide="download"></i>
+        <span class="btn-text">設定保存</span>
+      </button>
+      <button id="btn-load-loan" class="btn" title="ローン設定を読込">
+        <i data-lucide="upload"></i>
+        <span class="btn-text">設定読込</span>
+      </button>
+      <input type="file" id="input-loan-file" accept=".json" class="hidden">
+
+      <button id="btn-reset-loan" class="btn" title="初期値に戻す">
+        <i data-lucide="rotate-ccw"></i>
+        <span>リセット</span>
+      </button>
+
+      <!-- テーマ切替 -->
+      <button id="btn-theme-toggle" class="btn-icon" title="ダーク/ライト切替" aria-label="テーマ切替">
+        <i data-lucide="sun" id="icon-theme-light" class="hidden"></i>
+        <i data-lucide="moon" id="icon-theme-dark"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- ========================================================================
+       KPI Summary Cards
+       ======================================================================== -->
+  <section class="kpi-grid">
+    <!-- 1. 現在のお借入残高 -->
+    <div class="kpi-card">
+      <div class="kpi-top">
+        <span class="kpi-label">
+          <i data-lucide="banknote" style="color: var(--col-cyan);"></i>
+          現在のお借入残高
+        </span>
+        <span class="kpi-icon-badge" style="background: var(--col-cyan-subtle); color: var(--col-cyan);">
+          <i data-lucide="credit-card" style="width: 16px; height: 16px;"></i>
+        </span>
+      </div>
+      <div class="kpi-main-val">
+        <span id="kpi-loan-balance">5,000,000</span>
+        <span class="kpi-unit">円</span>
+      </div>
+      <div class="kpi-footer">
+        <span>借入元本: <strong id="kpi-init-principal">500</strong> 万円</span>
+        <span id="kpi-term-sub">期間: 5年（10期）</span>
+      </div>
+    </div>
+
+    <!-- 2. 有効担保評価額 -->
+    <div class="kpi-card">
+      <div class="kpi-top">
+        <span class="kpi-label">
+          <i data-lucide="briefcase" style="color: #818cf8;"></i>
+          有効担保評価額（掛け目後）
+        </span>
+        <span class="kpi-icon-badge" style="background: var(--col-primary-subtle); color: var(--col-primary);">
+          <i data-lucide="pie-chart" style="width: 16px; height: 16px;"></i>
+        </span>
+      </div>
+      <div class="kpi-main-val">
+        <span id="kpi-collateral-eval">9,800,000</span>
+        <span class="kpi-unit">円</span>
+      </div>
+      <div class="kpi-footer">
+        <span>時価総額: <strong id="kpi-collateral-market">1,800</strong> 万円</span>
+        <span>加重掛け目: <strong id="kpi-weighted-ratio">54.4%</strong></span>
+      </div>
+    </div>
+
+    <!-- 3. 現在の担保充足率 (LTV) -->
+    <div class="kpi-card" id="kpi-card-ratio">
+      <div class="kpi-top">
+        <span class="kpi-label">
+          <i data-lucide="shield-check" style="color: var(--col-emerald);"></i>
+          現在の担保充足率
+        </span>
+        <span id="kpi-status-badge" class="status-badge badge-safe">
+          <i data-lucide="check-circle" style="width: 12px; height: 12px;"></i>
+          安全域
+        </span>
+      </div>
+      <div class="kpi-main-val">
+        <span id="kpi-coverage-ratio" style="color: var(--col-emerald);">196.0</span>
+        <span class="kpi-unit">%</span>
+      </div>
+      <div class="meter-container">
+        <div id="kpi-meter-bar" class="meter-bar" style="width: 80%; background-color: var(--col-emerald);"></div>
+      </div>
+      <div class="kpi-footer">
+        <span>強制売却ライン: <strong>70.0%</strong></span>
+        <span id="kpi-margin-amount">余裕額: +630.0 万円</span>
+      </div>
+    </div>
+
+    <!-- 4. 次回（半年後）元加予定利息額 -->
+    <div class="kpi-card">
+      <div class="kpi-top">
+        <span class="kpi-label">
+          <i data-lucide="calendar-clock" style="color: var(--col-amber);"></i>
+          次回（半年後）元加予定利息
+        </span>
+        <span class="kpi-icon-badge" style="background: var(--col-amber-subtle); color: var(--col-amber);">
+          <i data-lucide="clock" style="width: 16px; height: 16px;"></i>
+        </span>
+      </div>
+      <div class="kpi-main-val">
+        <span id="kpi-next-interest">62,500</span>
+        <span class="kpi-unit">円</span>
+      </div>
+      <div class="kpi-footer">
+        <span>適用金利: <strong id="kpi-current-rate">2.50%</strong></span>
+        <span>次回残高: <strong id="kpi-next-balance">506.3</strong> 万円</span>
+      </div>
+    </div>
+
+    <!-- 5. 危険限界下落率 (安全マージン) -->
+    <div class="kpi-card">
+      <div class="kpi-top">
+        <span class="kpi-label">
+          <i data-lucide="alert-triangle" style="color: var(--col-rose);"></i>
+          ロスカット限界下落率
+        </span>
+        <span class="kpi-icon-badge" style="background: var(--col-rose-subtle); color: var(--col-rose);">
+          <i data-lucide="trending-down" style="width: 16px; height: 16px;"></i>
+        </span>
+      </div>
+      <div class="kpi-main-val">
+        <span id="kpi-max-drop" style="color: var(--col-cyan);">-64.3</span>
+        <span class="kpi-unit">%</span>
+      </div>
+      <div class="kpi-footer">
+        <span>担保評価 <strong>350.0万円</strong> 割れで追証</span>
+        <span>下落余裕: <strong>高</strong></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================================
+       Smartphone Tabs Navigation
+       ======================================================================== -->
+  <nav class="mobile-tab-nav" id="mobile-tab-nav">
+    <button type="button" class="mobile-tab-btn active" data-tab="tab-inputs">
+      <i data-lucide="sliders-horizontal" style="width: 18px; height: 18px;"></i>
+      <span>条件・担保</span>
+    </button>
+    <button type="button" class="mobile-tab-btn" data-tab="tab-chart">
+      <i data-lucide="line-chart" style="width: 18px; height: 18px;"></i>
+      <span>推移チャート</span>
+    </button>
+    <button type="button" class="mobile-tab-btn" data-tab="tab-table">
+      <i data-lucide="table" style="width: 18px; height: 18px;"></i>
+      <span>元加詳細表</span>
+    </button>
+    <button type="button" class="mobile-tab-btn" data-tab="tab-stress">
+      <i data-lucide="zap" style="width: 18px; height: 18px;"></i>
+      <span>下落耐性</span>
+    </button>
+  </nav>
+
+  <!-- ========================================================================
+       Main Workspace (PC: 2 Column, Mobile: Tab Managed)
+       ======================================================================== -->
+  <div class="workspace-layout">
+
+    <!-- Left Column: Inputs & Collateral Portfolio -->
+    <div class="panel-card mobile-tab-content tab-active" id="tab-inputs">
+      <div class="panel-title-row">
+        <div class="panel-title">
+          <i data-lucide="sliders" style="color: var(--col-primary);"></i>
+          <span>ローン条件・担保設定</span>
+        </div>
+      </div>
+
+      <!-- 借入元本 -->
+      <div class="form-group">
+        <div class="form-label-row">
+          <label class="form-label" for="input-principal">借入元本</label>
+          <span class="form-badge-val" id="badge-principal">500 万円</span>
+        </div>
+        <div class="input-range-wrap">
+          <input type="range" id="range-principal" min="1000000" max="50000000" step="500000" value="5000000">
+          <input type="number" id="input-principal" class="input-number-box" value="5000000" step="100000">
+        </div>
+        <div class="quick-buttons">
+          <button type="button" class="btn-quick" data-add-principal="-1000000">-100万</button>
+          <button type="button" class="btn-quick" data-add-principal="1000000">+100万</button>
+          <button type="button" class="btn-quick" data-set-principal="3000000">300万</button>
+          <button type="button" class="btn-quick" data-set-principal="5000000">500万</button>
+          <button type="button" class="btn-quick" data-set-principal="10000000">1,000万</button>
+          <button type="button" class="btn-quick" data-set-principal="20000000">2,000万</button>
+        </div>
+      </div>
+
+      <!-- 借入金利（年利） -->
+      <div class="form-group">
+        <div class="form-label-row">
+          <label class="form-label" for="input-rate">借入金利 (年利)</label>
+          <span class="form-badge-val" id="badge-rate">2.50 %</span>
+        </div>
+        <div class="input-range-wrap">
+          <input type="range" id="range-rate" min="0.5" max="10.0" step="0.05" value="2.50">
+          <input type="number" id="input-rate" class="input-number-box" value="2.50" step="0.05" min="0.1" max="20.0">
+        </div>
+        <div class="quick-buttons">
+          <button type="button" class="btn-quick" data-set-rate="1.80">1.80% (優遇)</button>
+          <button type="button" class="btn-quick" data-set-rate="2.50">2.50% (基準)</button>
+          <button type="button" class="btn-quick" data-set-rate="3.20">3.20%</button>
+          <button type="button" class="btn-quick" data-set-rate="4.00">4.00%</button>
+        </div>
+      </div>
+
+      <!-- シミュレーション期間 -->
+      <div class="form-group">
+        <div class="form-label-row">
+          <label class="form-label" for="input-years">シミュレーション期間</label>
+          <span class="form-badge-val" id="badge-years">5 年 (10期)</span>
+        </div>
+        <div class="input-range-wrap">
+          <input type="range" id="range-years" min="1" max="10" step="0.5" value="5">
+          <input type="number" id="input-years" class="input-number-box" value="5" step="0.5" min="1" max="10">
+        </div>
+      </div>
+
+      <!-- 担保資産の想定年率成長率 -->
+      <div class="form-group">
+        <div class="form-label-row">
+          <label class="form-label" for="input-growth">担保資産の想定成長率 (年率)</label>
+          <span class="form-badge-val" id="badge-growth">+3.0 %</span>
+        </div>
+        <div class="input-range-wrap">
+          <input type="range" id="range-growth" min="-10.0" max="15.0" step="0.5" value="3.0">
+          <input type="number" id="input-growth" class="input-number-box" value="3.0" step="0.5" min="-30.0" max="30.0">
+        </div>
+        <div class="quick-buttons">
+          <button type="button" class="btn-quick" data-set-growth="0.0">±0% (横ばい)</button>
+          <button type="button" class="btn-quick" data-set-growth="3.0">+3% (堅実)</button>
+          <button type="button" class="btn-quick" data-set-growth="5.0">+5% (標準)</button>
+          <button type="button" class="btn-quick" data-set-growth="-5.0">-5% (下落傾向)</button>
+        </div>
+      </div>
+
+      <!-- 担保資産ポートフォリオ -->
+      <div class="portfolio-section">
+        <div class="form-label-row">
+          <label class="form-label">
+            <i data-lucide="layers" style="color: var(--col-cyan);"></i>
+            担保ポートフォリオ登録
+          </label>
+          <button type="button" id="btn-add-asset" class="btn" style="padding: 0.25rem 0.6rem; font-size: 0.74rem;">
+            <i data-lucide="plus"></i>
+            <span>銘柄追加</span>
+          </button>
+        </div>
+
+        <div class="portfolio-table-wrap">
+          <table class="portfolio-table">
+            <thead>
+              <tr>
+                <th>銘柄・資産名</th>
+                <th>時価評価額(円)</th>
+                <th>掛け目</th>
+                <th>担保評価額</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="portfolio-tbody">
+              <!-- Dynamic Rows Inserted Here -->
+            </tbody>
+          </table>
+        </div>
+
+        <div class="portfolio-summary-bar">
+          <div class="summary-item">
+            時価合計: <strong id="sum-market-val">1,800.0</strong> 万円
+          </div>
+          <div class="summary-item">
+            有効担保額: <strong id="sum-eval-val" style="color: var(--col-cyan);">980.0</strong> 万円
+          </div>
+        </div>
+      </div>
+
+      <!-- 野村Webローン豆知識 -->
+      <div class="info-box">
+        <h3>
+          <i data-lucide="info"></i>
+          野村Webローンの基本ルール
+        </h3>
+        <ul class="info-list">
+          <li><strong>元加（利息の元本加算）</strong>: 半年ごとの契約更新時に発生した利息がお借入残高に組み入れられ、複利で推移します。</li>
+          <li><strong>担保掛け目</strong>: 国内株式は時価の50%、投資信託や公社債等は商品により50%〜80%程度で評価されます。</li>
+          <li><strong>ロスカット基準（70%）</strong>: 担保充足率が70%未満となった場合、野村信託銀行による追加担保請求（追証）や強制売却の対象となります。</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Right Column: Charts, Simulation Table & Stress Test -->
+    <div class="right-workspace">
+
+      <!-- 推移チャート -->
+      <div class="panel-card chart-panel mobile-tab-content" id="tab-chart">
+        <div class="panel-title-row">
+          <div class="panel-title">
+            <i data-lucide="trending-up" style="color: #818cf8;"></i>
+            <span>残高・担保評価額・限界借入残高 推移チャート</span>
+          </div>
+          <div style="font-size: 0.72rem; color: var(--text-secondary);">
+            半年ごとの元加複利計算
+          </div>
+        </div>
+
+        <div class="chart-guide-banner" style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: var(--radius-sm); padding: 0.55rem 0.85rem; font-size: 0.76rem; color: var(--text-secondary); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+          <div style="display: flex; align-items: center; gap: 0.45rem;">
+            <i data-lucide="shield-check" style="width: 16px; height: 16px; color: var(--col-emerald); flex-shrink: 0;"></i>
+            <span><strong>直感判定</strong>: 青色実線（<strong>実際の借入残高</strong>）が、赤色破線（<strong>限界借入残高ライン</strong>）より<strong>下</strong>にあれば充足率70%以上で安全です。</span>
+          </div>
+          <div style="font-size: 0.72rem; color: var(--text-muted);">
+            ※限界借入残高 ＝ その時点の担保評価額 ÷ 0.70（充足率70%割れ上限値）
+          </div>
+        </div>
+
+        <div class="chart-container">
+          <canvas id="loanChart"></canvas>
+        </div>
+      </div>
+
+      <!-- 元加詳細推移テーブル -->
+      <div class="panel-card mobile-tab-content" id="tab-table">
+        <div class="panel-title-row">
+          <div class="panel-title">
+            <i data-lucide="file-spreadsheet" style="color: var(--col-emerald);"></i>
+            <span>半年ごと元加シミュレーション詳細表</span>
+          </div>
+          <button type="button" id="btn-export-csv" class="btn" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;">
+            <i data-lucide="download"></i>
+            <span>CSV出力</span>
+          </button>
+        </div>
+
+        <div class="sim-table-wrap">
+          <table class="sim-table">
+            <thead>
+              <tr>
+                <th class="text-left">経過時期</th>
+                <th>期首残高</th>
+                <th>発生利息(元加)</th>
+                <th>期末残高</th>
+                <th>担保評価額</th>
+                <th>充足率</th>
+                <th class="text-center">健全性</th>
+              </tr>
+            </thead>
+            <tbody id="sim-tbody">
+              <!-- Dynamic Rows Inserted Here -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ストレステスト・下落耐性シミュレーター -->
+      <div class="panel-card mobile-tab-content" id="tab-stress">
+        <div class="panel-title-row">
+          <div class="panel-title">
+            <i data-lucide="flame" style="color: var(--col-orange);"></i>
+            <span>株価急落ストレステスト（下落耐性検証）</span>
+          </div>
+        </div>
+
+        <p style="font-size: 0.8rem; color: var(--text-secondary);">
+          現在のお借入残高に対し、担保資産の時価が急落した場合の担保充足率とロスカットまでの安全マージンを検証します。
+        </p>
+
+        <div class="stress-grid" id="stress-grid">
+          <!-- Dynamic Stress Cards Inserted Here -->
+        </div>
+
+        <!-- 任意下落シミュレータースライダー -->
+        <div class="form-group" style="margin-top: 0.75rem; background: var(--bg-card); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+          <div class="form-label-row">
+            <label class="form-label" for="range-custom-stress">
+              <i data-lucide="crosshair" style="width: 14px; height: 14px;"></i>
+              任意の下落率で即時試算:
+            </label>
+            <span class="form-badge-val" id="badge-custom-stress" style="color: var(--col-rose);">-30 %</span>
+          </div>
+          <div class="input-range-wrap">
+            <input type="range" id="range-custom-stress" min="-80" max="0" step="1" value="-30">
+            <span id="custom-stress-result" style="font-family: var(--font-num); font-size: 0.9rem; font-weight: 700; white-space: nowrap;">
+              充足率: 137.2%
+            </span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+<!-- ==========================================================================
+     Application Logic & Simulation Script
+     ========================================================================== -->
+<script>
+/**
+ * 野村Webローン 担保健全性＆元加シミュレーション エンジン
+ */
+(function() {
+  'use strict';
+
+  // --- Initial / Default State ---
+  const DEFAULT_LOAN_STATE = {
+    principal: 5000000,   // 500万円
+    rate: 2.50,           // 年利 2.50%
+    years: 5.0,           // 5年間 (10期)
+    growth: 3.0,          // 担保成長率 +3.0%/年
+    portfolio: [
+      { id: 'asset-1', name: '銘柄A (国内株式)', value: 10000000, ratio: 0.50 },
+      { id: 'asset-2', name: '銘柄B (投資信託)', value: 8000000, ratio: 0.60 }
+    ]
+  };
+
+  let state = JSON.parse(localStorage.getItem('nomura_loan_state')) || JSON.parse(JSON.stringify(DEFAULT_LOAN_STATE));
+  let chartInstance = null;
+
+  // --- Helper Formatter Functions ---
+  function formatYen(num) {
+    if (isNaN(num) || num === null || num === undefined) return '0';
+    return Math.round(num).toLocaleString('ja-JP');
+  }
+
+  function formatMan(num) {
+    if (isNaN(num) || num === null || num === undefined) return '0.0';
+    return (num / 10000).toLocaleString('ja-JP', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  }
+
+  // --- Calculation Engine ---
+  function calculateLoanSimulation() {
+    const principal = Math.max(0, Number(state.principal) || 0);
+    const annualRate = Math.max(0, Number(state.rate) || 0) / 100;
+    const semiAnnualRate = annualRate / 2; // 半年利息
+    const totalPeriods = Math.round((Number(state.years) || 5) * 2);
+    const annualGrowth = (Number(state.growth) || 0) / 100;
+    const semiAnnualGrowthFactor = Math.pow(1 + annualGrowth, 0.5); // 半年ごとの成長率
+
+    // 1. 担保時価 & 有効担保評価額の算出
+    let totalMarketVal = 0;
+    let totalEvalVal = 0;
+
+    state.portfolio.forEach(item => {
+      const val = Math.max(0, Number(item.value) || 0);
+      const ratio = Math.max(0, Math.min(1, Number(item.ratio) || 0));
+      totalMarketVal += val;
+      totalEvalVal += (val * ratio);
+    });
+
+    const weightedRatio = totalMarketVal > 0 ? (totalEvalVal / totalMarketVal) * 100 : 0;
+
+    // 2. 現在の担保充足率
+    const currentCoverageRatio = principal > 0 ? (totalEvalVal / principal) * 100 : 999;
+
+    // 3. 次回（半年後）発生予定利息
+    const nextInterest = principal * semiAnnualRate;
+    const nextBalance = principal + nextInterest;
+
+    // 4. ロスカット限界下落率
+    // ロスカット条件: 担保評価額 * (1 - Drop) / 残高 = 0.70
+    // 1 - Drop = (0.70 * 残高) / 担保評価額
+    // Drop = 1 - (0.70 * 残高) / 担保評価額
+    let maxDropRate = 0;
+    let requiredMinEval = principal * 0.70;
+    if (totalEvalVal > 0 && principal > 0) {
+      maxDropRate = (1 - (requiredMinEval / totalEvalVal)) * 100;
+    } else {
+      maxDropRate = 0;
+    }
+
+    // 5. 各期の元加シミュレーション推移
+    const timeline = [];
+    let curBal = principal;
+    let curEval = totalEvalVal;
+
+    // 初期状態 (0期)
+    timeline.push({
+      period: 0,
+      label: '現在',
+      yearOffset: 0,
+      startBalance: curBal,
+      interest: 0,
+      endBalance: curBal,
+      collateralEval: curEval,
+      coverageRatio: curBal > 0 ? (curEval / curBal) * 100 : 999,
+      isLossCut: curBal > 0 ? (curEval / curBal) < 0.70 : false
+    });
+
+    for (let p = 1; p <= totalPeriods; p++) {
+      const startBal = curBal;
+      const interest = startBal * semiAnnualRate;
+      const endBal = startBal + interest;
+      curEval = curEval * semiAnnualGrowthFactor;
+      const covRatio = endBal > 0 ? (curEval / endBal) * 100 : 999;
+      const isLossCut = covRatio < 70;
+
+      const year = (p * 0.5).toFixed(1);
+      timeline.push({
+        period: p,
+        label: `${year}年後 (${p}期)`,
+        yearOffset: p * 0.5,
+        startBalance: startBal,
+        interest: interest,
+        endBalance: endBal,
+        collateralEval: curEval,
+        coverageRatio: covRatio,
+        isLossCut: isLossCut
+      });
+
+      curBal = endBal; // 次期の期首残高へ元加
+    }
+
+    return {
+      principal,
+      annualRate,
+      semiAnnualRate,
+      totalPeriods,
+      totalMarketVal,
+      totalEvalVal,
+      weightedRatio,
+      currentCoverageRatio,
+      nextInterest,
+      nextBalance,
+      requiredMinEval,
+      maxDropRate,
+      timeline
+    };
+  }
+
+  // --- UI Update Functions ---
+  function updateKPIs(sim) {
+    // 1. お借入残高
+    document.getElementById('kpi-loan-balance').textContent = formatYen(sim.principal);
+    document.getElementById('kpi-init-principal').textContent = formatMan(sim.principal);
+    document.getElementById('kpi-term-sub').textContent = `期間: ${state.years}年 (${sim.totalPeriods}期)`;
+
+    // 2. 有効担保評価額
+    document.getElementById('kpi-collateral-eval').textContent = formatYen(sim.totalEvalVal);
+    document.getElementById('kpi-collateral-market').textContent = formatMan(sim.totalMarketVal);
+    document.getElementById('kpi-weighted-ratio').textContent = `${sim.weightedRatio.toFixed(1)}%`;
+
+    // 3. 担保充足率
+    const ratioEl = document.getElementById('kpi-coverage-ratio');
+    const badgeEl = document.getElementById('kpi-status-badge');
+    const meterEl = document.getElementById('kpi-meter-bar');
+    const marginEl = document.getElementById('kpi-margin-amount');
+
+    const ratio = sim.currentCoverageRatio;
+    ratioEl.textContent = ratio.toFixed(1);
+
+    const marginAmount = sim.totalEvalVal - (sim.principal * 0.7);
+    marginEl.textContent = `余裕額: ${marginAmount >= 0 ? '+' : ''}${formatMan(marginAmount)} 万円`;
+
+    // バッジとメーターのカラー判定
+    let badgeClass = 'badge-safe';
+    let badgeText = '安全域';
+    let badgeIcon = 'check-circle';
+    let colorVar = 'var(--col-emerald)';
+
+    if (ratio >= 150) {
+      badgeClass = 'badge-safe';
+      badgeText = '安全域 (150%以上)';
+      badgeIcon = 'check-circle';
+      colorVar = 'var(--col-emerald)';
+    } else if (ratio >= 100) {
+      badgeClass = 'badge-warning';
+      badgeText = '注意 (100〜150%)';
+      badgeIcon = 'alert-circle';
+      colorVar = 'var(--col-amber)';
+    } else if (ratio >= 70) {
+      badgeClass = 'badge-alert';
+      badgeText = '警戒 (70〜100%)';
+      badgeIcon = 'alert-triangle';
+      colorVar = 'var(--col-orange)';
+    } else {
+      badgeClass = 'badge-danger';
+      badgeText = '危険 (ロスカット基準)';
+      badgeIcon = 'shield-alert';
+      colorVar = 'var(--col-rose)';
+    }
+
+    badgeEl.className = `status-badge ${badgeClass}`;
+    badgeEl.innerHTML = `<i data-lucide="${badgeIcon}" style="width: 12px; height: 12px;"></i> ${badgeText}`;
+    ratioEl.style.color = colorVar;
+
+    const meterPct = Math.min(100, Math.max(0, (ratio / 200) * 100));
+    meterEl.style.width = `${meterPct}%`;
+    meterEl.style.backgroundColor = colorVar;
+
+    // 4. 次回元加予定利息
+    document.getElementById('kpi-next-interest').textContent = formatYen(sim.nextInterest);
+    document.getElementById('kpi-current-rate').textContent = `${Number(state.rate).toFixed(2)}%`;
+    document.getElementById('kpi-next-balance').textContent = formatMan(sim.nextBalance);
+
+    // 5. 危険限界下落率
+    const dropEl = document.getElementById('kpi-max-drop');
+    if (sim.maxDropRate > 0) {
+      dropEl.textContent = `-${sim.maxDropRate.toFixed(1)}`;
+      dropEl.style.color = sim.maxDropRate > 40 ? 'var(--col-cyan)' : 'var(--col-rose)';
+    } else {
+      dropEl.textContent = `0.0`;
+      dropEl.style.color = 'var(--col-rose)';
+    }
+  }
+
+  // --- Portfolio Table Rendering ---
+  function renderPortfolio() {
+    const tbody = document.getElementById('portfolio-tbody');
+    tbody.innerHTML = '';
+
+    let totalM = 0;
+    let totalE = 0;
+
+    state.portfolio.forEach((asset, idx) => {
+      const evalVal = (Number(asset.value) || 0) * (Number(asset.ratio) || 0);
+      totalM += Number(asset.value) || 0;
+      totalE += evalVal;
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="col-asset-name">
+          <input type="text" value="${escapeHtml(asset.name)}" data-field="name" data-idx="${idx}">
+        </td>
+        <td class="col-asset-val">
+          <input type="number" value="${Number(asset.value) || 0}" step="100000" data-field="value" data-idx="${idx}">
+        </td>
+        <td class="col-asset-ratio">
+          <select data-field="ratio" data-idx="${idx}">
+            <option value="0.50" ${asset.ratio === 0.50 ? 'selected' : ''}>50% (株式)</option>
+            <option value="0.60" ${asset.ratio === 0.60 ? 'selected' : ''}>60% (投信/債券)</option>
+            <option value="0.70" ${asset.ratio === 0.70 ? 'selected' : ''}>70% (優良債券)</option>
+            <option value="0.80" ${asset.ratio === 0.80 ? 'selected' : ''}>80% (国債等)</option>
+            <option value="0.40" ${asset.ratio === 0.40 ? 'selected' : ''}>40%</option>
+          </select>
+        </td>
+        <td class="col-asset-eval">${formatYen(evalVal)} 円</td>
+        <td style="text-align: center;">
+          <button type="button" class="btn-delete-row" data-delete-idx="${idx}" title="削除">
+            <i data-lucide="trash-2" style="width: 15px; height: 15px;"></i>
+          </button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    document.getElementById('sum-market-val').textContent = formatMan(totalM);
+    document.getElementById('sum-eval-val').textContent = formatMan(totalE);
+
+    if (window.lucide) {
+      lucide.createIcons();
+    }
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // --- Simulation Table Rendering ---
+  function renderSimTable(sim) {
+    const tbody = document.getElementById('sim-tbody');
+    tbody.innerHTML = '';
+
+    sim.timeline.forEach(item => {
+      const tr = document.createElement('tr');
+      if (item.isLossCut) {
+        tr.className = 'row-danger';
+      }
+
+      let badgeHtml = '';
+      if (item.coverageRatio >= 150) {
+        badgeHtml = '<span class="status-badge badge-safe">安全</span>';
+      } else if (item.coverageRatio >= 100) {
+        badgeHtml = '<span class="status-badge badge-warning">注意</span>';
+      } else if (item.coverageRatio >= 70) {
+        badgeHtml = '<span class="status-badge badge-alert">警戒</span>';
+      } else {
+        badgeHtml = '<span class="status-badge badge-danger">ロスカット</span>';
+      }
+
+      tr.innerHTML = `
+        <td class="text-left" style="font-weight: 700;">${item.label}</td>
+        <td>${formatYen(item.startBalance)} 円</td>
+        <td style="color: var(--col-amber);">${item.period === 0 ? '-' : '+' + formatYen(item.interest) + ' 円'}</td>
+        <td style="font-weight: 700;">${formatYen(item.endBalance)} 円</td>
+        <td style="color: var(--col-cyan);">${formatYen(item.collateralEval)} 円</td>
+        <td style="font-weight: 800; color: ${item.coverageRatio >= 100 ? 'var(--col-emerald)' : (item.coverageRatio >= 70 ? 'var(--col-orange)' : 'var(--col-rose)')};">
+          ${item.coverageRatio.toFixed(1)} %
+        </td>
+        <td class="text-center">${badgeHtml}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // --- Chart.js Rendering ---
+  function renderChart(sim) {
+    const ctx = document.getElementById('loanChart');
+    if (!ctx) return;
+
+    const labels = sim.timeline.map(t => t.label);
+    const balanceData = sim.timeline.map(t => Math.round(t.endBalance));
+    const evalData = sim.timeline.map(t => Math.round(t.collateralEval));
+    // 限界借入残高ライン（これ以上借入残高が増えたら充足率70%割れになる上限値 = 担保評価額 ÷ 0.70）
+    const limitBalanceData = sim.timeline.map(t => Math.round(t.collateralEval / 0.70));
+
+    if (chartInstance) {
+      chartInstance.destroy();
+    }
+
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const gridColor = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)';
+    const textColor = isDark ? '#94a3b8' : '#475569';
+
+    chartInstance = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: '限界借入残高ライン（充足率70%上限: 担保評価額÷0.7）',
+            data: limitBalanceData,
+            borderColor: '#f43f5e',
+            borderWidth: 2.5,
+            borderDash: [6, 4],
+            backgroundColor: 'transparent',
+            fill: false,
+            pointRadius: 3,
+            pointHoverRadius: 6
+          },
+          {
+            label: '担保評価額（時価×掛け目）',
+            data: evalData,
+            borderColor: '#10b981',
+            backgroundColor: 'rgba(16, 185, 129, 0.10)',
+            fill: true,
+            borderWidth: 3,
+            tension: 0.2,
+            pointRadius: 4,
+            pointHoverRadius: 7
+          },
+          {
+            label: '実際の借入残高（元加で増えていく推移）',
+            data: balanceData,
+            borderColor: '#38bdf8',
+            backgroundColor: 'rgba(56, 189, 248, 0.12)',
+            fill: false,
+            borderWidth: 3,
+            tension: 0.1,
+            pointRadius: 4,
+            pointHoverRadius: 7
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+          mode: 'index',
+          intersect: false
+        },
+        plugins: {
+          legend: {
+            position: 'top',
+            labels: {
+              color: textColor,
+              font: { family: "'Outfit', 'Noto Sans JP', sans-serif", size: 12, weight: 600 },
+              usePointStyle: true,
+              boxWidth: 8
+            }
+          },
+          tooltip: {
+            backgroundColor: isDark ? 'rgba(16, 22, 36, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+            titleColor: isDark ? '#f8fafc' : '#0f172a',
+            bodyColor: isDark ? '#cbd5e1' : '#334155',
+            borderColor: isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.15)',
+            borderWidth: 1,
+            padding: 12,
+            boxPadding: 6,
+            usePointStyle: true,
+            callbacks: {
+              label: function(context) {
+                const label = context.dataset.label || '';
+                const val = context.raw || 0;
+                return `${label}: ${formatYen(val)} 円 (${formatMan(val)} 万円)`;
+              },
+              afterBody: function(tooltipItems) {
+                if (tooltipItems.length >= 3) {
+                  const limitVal = tooltipItems[0].raw;
+                  const evalVal = tooltipItems[1].raw;
+                  const balVal = tooltipItems[2].raw;
+                  const ratio = balVal > 0 ? ((evalVal / balVal) * 100).toFixed(1) : 0;
+                  const marginToLimit = limitVal - balVal;
+                  return `\n担保充足率: ${ratio}%\n限界借入までの安全余裕: +${formatMan(marginToLimit)} 万円 (残高がこれ以上増えるとロスカット)`;
+                }
+                return '';
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { color: gridColor },
+            ticks: {
+              color: textColor,
+              font: { family: "'Outfit', sans-serif" }
+            }
+          },
+          y: {
+            grid: { color: gridColor },
+            ticks: {
+              color: textColor,
+              font: { family: "'Outfit', sans-serif" },
+              callback: function(val) {
+                return (val / 10000) + '万';
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // --- Stress Test Cards Rendering ---
+  function renderStressTest(sim) {
+    const grid = document.getElementById('stress-grid');
+    grid.innerHTML = '';
+
+    const dropSteps = [-10, -20, -30, -40, -50];
+
+    dropSteps.forEach(drop => {
+      const dropFactor = 1 + (drop / 100);
+      const stressedEval = sim.totalEvalVal * dropFactor;
+      const stressedRatio = sim.principal > 0 ? (stressedEval / sim.principal) * 100 : 999;
+      const isCut = stressedRatio < 70;
+
+      const card = document.createElement('div');
+      card.className = 'stress-card';
+      if (isCut) {
+        card.style.borderColor = 'var(--col-rose)';
+        card.style.background = 'rgba(244, 63, 94, 0.08)';
+      }
+
+      card.innerHTML = `
+        <div class="stress-drop-tag">
+          <span style="color: ${drop <= -30 ? 'var(--col-rose)' : 'var(--col-amber)'}; font-weight: 800;">
+            株価 ${drop}% 下落
+          </span>
+          <span class="status-badge ${isCut ? 'badge-danger' : (stressedRatio >= 150 ? 'badge-safe' : 'badge-warning')}">
+            ${isCut ? 'ロスカット' : (stressedRatio >= 150 ? '安全' : '注意')}
+          </span>
+        </div>
+        <div class="stress-eval-val" style="color: ${isCut ? 'var(--col-rose)' : 'var(--text-primary)'};">
+          ${formatMan(stressedEval)} <span style="font-size: 0.75rem; font-weight: 500;">万円</span>
+        </div>
+        <div class="stress-ratio-val">
+          <span style="color: var(--text-secondary); font-size: 0.72rem;">担保充足率</span>
+          <strong style="color: ${isCut ? 'var(--col-rose)' : (stressedRatio >= 150 ? 'var(--col-emerald)' : 'var(--col-amber)')};">
+            ${stressedRatio.toFixed(1)}%
+          </strong>
+        </div>
+      `;
+      grid.appendChild(card);
+    });
+
+    updateCustomStress(sim);
+  }
+
+  function updateCustomStress(sim) {
+    const slider = document.getElementById('range-custom-stress');
+    const badge = document.getElementById('badge-custom-stress');
+    const resEl = document.getElementById('custom-stress-result');
+
+    const dropVal = Number(slider.value);
+    badge.textContent = `${dropVal} %`;
+
+    const dropFactor = 1 + (dropVal / 100);
+    const stressedEval = sim.totalEvalVal * dropFactor;
+    const stressedRatio = sim.principal > 0 ? (stressedEval / sim.principal) * 100 : 999;
+    const isCut = stressedRatio < 70;
+
+    resEl.innerHTML = `充足率: <strong style="color: ${isCut ? 'var(--col-rose)' : 'var(--col-cyan)'}">${stressedRatio.toFixed(1)}%</strong> (${isCut ? '⚠️ ロスカット' : '安全水準'})`;
+  }
+
+  // --- Main Refresh Controller ---
+  function refreshAll() {
+    // フォーム入力値とバッジの同期
+    document.getElementById('input-principal').value = state.principal;
+    document.getElementById('range-principal').value = state.principal;
+    document.getElementById('badge-principal').textContent = `${formatMan(state.principal)} 万円`;
+
+    document.getElementById('input-rate').value = state.rate;
+    document.getElementById('range-rate').value = state.rate;
+    document.getElementById('badge-rate').textContent = `${Number(state.rate).toFixed(2)} %`;
+
+    document.getElementById('input-years').value = state.years;
+    document.getElementById('range-years').value = state.years;
+    document.getElementById('badge-years').textContent = `${state.years} 年 (${Math.round(state.years * 2)}期)`;
+
+    document.getElementById('input-growth').value = state.growth;
+    document.getElementById('range-growth').value = state.growth;
+    document.getElementById('badge-growth').textContent = `${state.growth >= 0 ? '+' : ''}${state.growth} %`;
+
+    // 計算実行
+    const sim = calculateLoanSimulation();
+
+    // 各セクションの描画
+    updateKPIs(sim);
+    renderPortfolio();
+    renderSimTable(sim);
+    renderChart(sim);
+    renderStressTest(sim);
+
+    // localStorageへの保存
+    try {
+      localStorage.setItem('nomura_loan_state', JSON.stringify(state));
+    } catch (e) {
+      console.warn('LocalStorage save failed:', e);
+    }
+  }
+
+  // --- Event Listeners Setup ---
+  function initEventListeners() {
+    // 借入元本
+    const rPrincipal = document.getElementById('range-principal');
+    const iPrincipal = document.getElementById('input-principal');
+
+    rPrincipal.addEventListener('input', (e) => {
+      state.principal = Number(e.target.value);
+      refreshAll();
+    });
+
+    iPrincipal.addEventListener('change', (e) => {
+      state.principal = Math.max(0, Number(e.target.value) || 0);
+      refreshAll();
+    });
+
+    // 借入元本クイックボタン
+    document.querySelectorAll('[data-set-principal]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.principal = Number(btn.getAttribute('data-set-principal'));
+        refreshAll();
+      });
+    });
+
+    document.querySelectorAll('[data-add-principal]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.principal = Math.max(0, state.principal + Number(btn.getAttribute('data-add-principal')));
+        refreshAll();
+      });
+    });
+
+    // 適用金利
+    const rRate = document.getElementById('range-rate');
+    const iRate = document.getElementById('input-rate');
+
+    rRate.addEventListener('input', (e) => {
+      state.rate = Number(e.target.value);
+      refreshAll();
+    });
+
+    iRate.addEventListener('change', (e) => {
+      state.rate = Math.max(0.1, Number(e.target.value) || 0.1);
+      refreshAll();
+    });
+
+    document.querySelectorAll('[data-set-rate]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.rate = Number(btn.getAttribute('data-set-rate'));
+        refreshAll();
+      });
+    });
+
+    // シミュレーション期間
+    const rYears = document.getElementById('range-years');
+    const iYears = document.getElementById('input-years');
+
+    rYears.addEventListener('input', (e) => {
+      state.years = Number(e.target.value);
+      refreshAll();
+    });
+
+    iYears.addEventListener('change', (e) => {
+      state.years = Math.max(1, Math.min(10, Number(e.target.value) || 1));
+      refreshAll();
+    });
+
+    // 想定資産成長率
+    const rGrowth = document.getElementById('range-growth');
+    const iGrowth = document.getElementById('input-growth');
+
+    rGrowth.addEventListener('input', (e) => {
+      state.growth = Number(e.target.value);
+      refreshAll();
+    });
+
+    iGrowth.addEventListener('change', (e) => {
+      state.growth = Number(e.target.value) || 0;
+      refreshAll();
+    });
+
+    document.querySelectorAll('[data-set-growth]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.growth = Number(btn.getAttribute('data-set-growth'));
+        refreshAll();
+      });
+    });
+
+    // ポートフォリオテーブルの変更イベント（イベント委譲）
+    const pTbody = document.getElementById('portfolio-tbody');
+
+    pTbody.addEventListener('input', (e) => {
+      const target = e.target;
+      const idx = target.getAttribute('data-idx');
+      const field = target.getAttribute('data-field');
+      if (idx !== null && field && state.portfolio[idx]) {
+        if (field === 'value' || field === 'ratio') {
+          state.portfolio[idx][field] = Number(target.value);
+        } else {
+          state.portfolio[idx][field] = target.value;
+        }
+        refreshAll();
+      }
+    });
+
+    pTbody.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-delete-idx]');
+      if (btn) {
+        const idx = Number(btn.getAttribute('data-delete-idx'));
+        if (state.portfolio.length > 1) {
+          state.portfolio.splice(idx, 1);
+          refreshAll();
+        } else {
+          alert('最低1件の担保銘柄が必要です。');
+        }
+      }
+    });
+
+    // 銘柄追加ボタン
+    document.getElementById('btn-add-asset').addEventListener('click', () => {
+      const nextNum = state.portfolio.length + 1;
+      state.portfolio.push({
+        id: `asset-${Date.now()}`,
+        name: `銘柄${String.fromCharCode(64 + nextNum)} (国内株式)`,
+        value: 5000000,
+        ratio: 0.50
+      });
+      refreshAll();
+    });
+
+    // カスタムストレステストスライダー
+    document.getElementById('range-custom-stress').addEventListener('input', () => {
+      const sim = calculateLoanSimulation();
+      updateCustomStress(sim);
+    });
+
+    // スマホタブ切り替え
+    const tabBtns = document.querySelectorAll('.mobile-tab-btn');
+    tabBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        tabBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        const targetTabId = btn.getAttribute('data-tab');
+        document.querySelectorAll('.mobile-tab-content').forEach(content => {
+          content.classList.remove('tab-active');
+        });
+
+        const targetContent = document.getElementById(targetTabId);
+        if (targetContent) {
+          targetContent.classList.add('tab-active');
+        }
+
+        // チャートのサイズ再調整
+        if (targetTabId === 'tab-chart' && chartInstance) {
+          setTimeout(() => chartInstance.resize(), 50);
+        }
+      });
+    });
+
+    // テーマ切り替え
+    const themeBtn = document.getElementById('btn-theme-toggle');
+    const iconLight = document.getElementById('icon-theme-light');
+    const iconDark = document.getElementById('icon-theme-dark');
+
+    function applyTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      if (theme === 'light') {
+        iconLight.classList.remove('hidden');
+        iconDark.classList.add('hidden');
+      } else {
+        iconLight.classList.add('hidden');
+        iconDark.classList.remove('hidden');
+      }
+      localStorage.setItem('nomura_loan_theme', theme);
+      if (chartInstance) {
+        refreshAll();
+      }
+    }
+
+    const savedTheme = localStorage.getItem('nomura_loan_theme') || 'dark';
+    applyTheme(savedTheme);
+
+    themeBtn.addEventListener('click', () => {
+      const current = document.documentElement.getAttribute('data-theme');
+      applyTheme(current === 'dark' ? 'light' : 'dark');
+    });
+
+    // リセットボタン
+    document.getElementById('btn-reset-loan').addEventListener('click', () => {
+      if (confirm('すべての入力値を初期サンプル状態にリセットしますか？')) {
+        state = JSON.parse(JSON.stringify(DEFAULT_LOAN_STATE));
+        refreshAll();
+      }
+    });
+
+    // JSON保存
+    document.getElementById('btn-save-loan').addEventListener('click', () => {
+      const jsonStr = JSON.stringify(state, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `nomura_web_loan_settings_${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    // JSON読込
+    const fileInput = document.getElementById('input-loan-file');
+    document.getElementById('btn-load-loan').addEventListener('click', () => {
+      fileInput.click();
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        try {
+          const loaded = JSON.parse(evt.target.result);
+          if (loaded.principal !== undefined && loaded.portfolio) {
+            state = loaded;
+            refreshAll();
+            alert('設定ファイルを正常に読み込みました。');
+          } else {
+            alert('設定ファイルのフォーマットが異なります。');
+          }
+        } catch (err) {
+          alert('JSONの解析に失敗しました: ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    // CSVエクスポート
+    document.getElementById('btn-export-csv').addEventListener('click', () => {
+      const sim = calculateLoanSimulation();
+      let csv = '\uFEFF時期,期首残高(円),発生利息(円),期末残高(円),担保評価額(円),担保充足率(%),健全性判定\n';
+
+      sim.timeline.forEach(item => {
+        const judge = item.coverageRatio >= 150 ? '安全' : (item.coverageRatio >= 100 ? '注意' : (item.coverageRatio >= 70 ? '警戒' : 'ロスカット'));
+        csv += `"${item.label}",${Math.round(item.startBalance)},${Math.round(item.interest)},${Math.round(item.endBalance)},${Math.round(item.collateralEval)},${item.coverageRatio.toFixed(2)},"${judge}"\n`;
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `nomura_loan_simulation_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+  }
+
+  // --- Initialize App ---
+  window.addEventListener('DOMContentLoaded', () => {
+    if (window.lucide) {
+      lucide.createIcons();
+    }
+    initEventListeners();
+    refreshAll();
+  });
+
+})();
+</script>
+
+</body>
+</html>

@@ -25,4 +25,12 @@ yarn-error.log*
 # Simulation data / exported files
 wealth_simulation_*.json
 wealth_simulation_*.csv
+nomura_*.json
+nomura_*.csv
 *.csv
+
+# Backups & scratch
+backup_*/
+backup_*.zip
+scratch_*
+
