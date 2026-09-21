@@ -5,7 +5,25 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>マルチ口座 資産運用シミュレーター PRO</title>
   <meta name="description" content="特定口座・旧NISA・新NISA・確定拠出年金・株式現物に対応した、ライフサイクル資産運用シミュレーター。退職所得控除やマイルストーン表、設定のJSON保存読込に対応。">
-  
+
+  <!-- Global Error Diagnostic Catcher -->
+  <script>
+    window.onerror = function(msg, url, line, col, error) {
+      console.error("Global Error Caught:", msg, "at line:", line, "col:", col, error);
+      try {
+        var banner = document.getElementById('global-err-banner');
+        if (!banner) {
+          banner = document.createElement('div');
+          banner.id = 'global-err-banner';
+          banner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#ef4444;color:#fff;padding:12px 16px;z-index:999999;font-weight:bold;font-size:13px;box-shadow:0 4px 12px rgba(0,0,0,0.5);display:flex;justify-content:space-between;align-items:center;';
+          document.body.prepend(banner);
+        }
+        banner.innerHTML = '<span>⚠️ エラー検出: ' + msg + ' (行: ' + line + ', 列: ' + col + ')</span><button onclick="this.parentElement.remove()" style="background:transparent;border:none;color:#fff;font-weight:bold;cursor:pointer;padding:4px 8px;">✕</button>';
+      } catch (e) {}
+      return false;
+    };
+  </script>
+
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
