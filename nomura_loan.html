@@ -661,17 +661,27 @@
       font-size: 0.78rem;
     }
 
+    .col-asset-val {
+      white-space: nowrap;
+    }
+
     .col-asset-val input {
-      width: 95px;
-      padding: 0.35rem 0.5rem;
+      width: 76px;
+      padding: 0.35rem 0.45rem;
       background: var(--bg-input);
       border: 1px solid var(--border-color);
       border-radius: 6px;
       color: var(--text-primary);
       font-family: var(--font-num);
-      font-size: 0.82rem;
+      font-size: 0.86rem;
       font-weight: 700;
       text-align: right;
+    }
+
+    .col-asset-val .unit-tag {
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      margin-left: 0.2rem;
     }
 
     .col-asset-ratio select {
@@ -1224,9 +1234,9 @@
             <thead>
               <tr>
                 <th>銘柄・資産名</th>
-                <th>時価評価額(円)</th>
+                <th>時価評価額 (万円)</th>
                 <th>掛け目</th>
-                <th>担保評価額</th>
+                <th>担保評価額 (万円)</th>
                 <th></th>
               </tr>
             </thead>
@@ -1381,12 +1391,22 @@
     years: 5.0,           // 5年間 (10期)
     growth: 3.0,          // 担保成長率 +3.0%/年
     portfolio: [
-      { id: 'asset-1', name: '銘柄A (国内株式)', value: 10000000, ratio: 0.50 },
-      { id: 'asset-2', name: '銘柄B (投資信託)', value: 8000000, ratio: 0.60 }
+      { id: 'asset-1', name: '銘柄A (国内株式)', value: 1000, ratio: 0.50 }, // 1,000万円
+      { id: 'asset-2', name: '銘柄B (投資信託)', value: 800, ratio: 0.60 }   // 800万円
     ]
   };
 
   let state = JSON.parse(localStorage.getItem('nomura_loan_state')) || JSON.parse(JSON.stringify(DEFAULT_LOAN_STATE));
+  
+  // 旧データ（円単位で保存されていた場合）を万円単位へ自動マイグレーション
+  if (state && Array.isArray(state.portfolio)) {
+    state.portfolio.forEach(item => {
+      if (item.value >= 100000) {
+        item.value = Math.round(item.value / 10000);
+      }
+    });
+  }
+
   let chartInstance = null;
 
   // --- Helper Formatter Functions ---
@@ -1409,15 +1429,16 @@
     const annualGrowth = (Number(state.growth) || 0) / 100;
     const semiAnnualGrowthFactor = Math.pow(1 + annualGrowth, 0.5); // 半年ごとの成長率
 
-    // 1. 担保時価 & 有効担保評価額の算出
+    // 1. 担保時価 & 有効担保評価額の算出（万円から円へ換算）
     let totalMarketVal = 0;
     let totalEvalVal = 0;
 
     state.portfolio.forEach(item => {
-      const val = Math.max(0, Number(item.value) || 0);
+      const valMan = Math.max(0, Number(item.value) || 0);
+      const valYen = valMan * 10000;
       const ratio = Math.max(0, Math.min(1, Number(item.ratio) || 0));
-      totalMarketVal += val;
-      totalEvalVal += (val * ratio);
+      totalMarketVal += valYen;
+      totalEvalVal += (valYen * ratio);
     });
 
     const weightedRatio = totalMarketVal > 0 ? (totalEvalVal / totalMarketVal) * 100 : 0;
@@ -1585,9 +1606,11 @@
     let totalE = 0;
 
     state.portfolio.forEach((asset, idx) => {
-      const evalVal = (Number(asset.value) || 0) * (Number(asset.ratio) || 0);
-      totalM += Number(asset.value) || 0;
-      totalE += evalVal;
+      const valMan = Math.max(0, Number(asset.value) || 0);
+      const ratio = Math.max(0, Math.min(1, Number(asset.ratio) || 0));
+      const evalMan = valMan * ratio;
+      totalM += valMan * 10000;
+      totalE += evalMan * 10000;
 
       const tr = document.createElement('tr');
       tr.innerHTML = `
@@ -1595,7 +1618,7 @@
           <input type="text" value="${escapeHtml(asset.name)}" data-field="name" data-idx="${idx}">
         </td>
         <td class="col-asset-val">
-          <input type="number" value="${Number(asset.value) || 0}" step="100000" data-field="value" data-idx="${idx}">
+          <input type="number" value="${valMan}" step="10" min="0" data-field="value" data-idx="${idx}"><span class="unit-tag">万円</span>
         </td>
         <td class="col-asset-ratio">
           <select data-field="ratio" data-idx="${idx}">
@@ -1606,7 +1629,7 @@
             <option value="0.40" ${asset.ratio === 0.40 ? 'selected' : ''}>40%</option>
           </select>
         </td>
-        <td class="col-asset-eval">${formatYen(evalVal)} 円</td>
+        <td class="col-asset-eval">${evalMan.toLocaleString('ja-JP', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} 万円</td>
         <td style="text-align: center;">
           <button type="button" class="btn-delete-row" data-delete-idx="${idx}" title="削除">
             <i data-lucide="trash-2" style="width: 15px; height: 15px;"></i>
@@ -2015,7 +2038,7 @@
       state.portfolio.push({
         id: `asset-${Date.now()}`,
         name: `銘柄${String.fromCharCode(64 + nextNum)} (国内株式)`,
-        value: 5000000,
+        value: 500, // 500万円
         ratio: 0.50
       });
       refreshAll();
