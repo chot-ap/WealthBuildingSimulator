@@ -559,6 +559,17 @@
       transform: scale(1.15);
     }
 
+    /* スピナー（上下矢印ボタン）の完全非表示 */
+    input::-webkit-outer-spin-button,
+    input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    input[type="number"] {
+      -moz-appearance: textfield;
+      appearance: textfield;
+    }
+
     .input-number-box {
       width: 110px;
       padding: 0.45rem 0.65rem;
@@ -1602,15 +1613,10 @@
     const tbody = document.getElementById('portfolio-tbody');
     tbody.innerHTML = '';
 
-    let totalM = 0;
-    let totalE = 0;
-
     state.portfolio.forEach((asset, idx) => {
       const valMan = Math.max(0, Number(asset.value) || 0);
       const ratio = Math.max(0, Math.min(1, Number(asset.ratio) || 0));
       const evalMan = valMan * ratio;
-      totalM += valMan * 10000;
-      totalE += evalMan * 10000;
 
       const tr = document.createElement('tr');
       tr.innerHTML = `
@@ -1618,7 +1624,7 @@
           <input type="text" value="${escapeHtml(asset.name)}" data-field="name" data-idx="${idx}">
         </td>
         <td class="col-asset-val">
-          <input type="number" value="${valMan}" step="10" min="0" data-field="value" data-idx="${idx}"><span class="unit-tag">万円</span>
+          <input type="text" inputmode="numeric" autocomplete="off" value="${valMan}" data-field="value" data-idx="${idx}"><span class="unit-tag">万円</span>
         </td>
         <td class="col-asset-ratio">
           <select data-field="ratio" data-idx="${idx}">
@@ -1629,7 +1635,7 @@
             <option value="0.40" ${asset.ratio === 0.40 ? 'selected' : ''}>40%</option>
           </select>
         </td>
-        <td class="col-asset-eval">${evalMan.toLocaleString('ja-JP', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} 万円</td>
+        <td class="col-asset-eval" data-eval-idx="${idx}">${evalMan.toLocaleString('ja-JP', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} 万円</td>
         <td style="text-align: center;">
           <button type="button" class="btn-delete-row" data-delete-idx="${idx}" title="削除">
             <i data-lucide="trash-2" style="width: 15px; height: 15px;"></i>
@@ -1639,12 +1645,34 @@
       tbody.appendChild(tr);
     });
 
-    document.getElementById('sum-market-val').textContent = formatMan(totalM);
-    document.getElementById('sum-eval-val').textContent = formatMan(totalE);
+    updatePortfolioSummary();
 
     if (window.lucide) {
       lucide.createIcons();
     }
+  }
+
+  function updatePortfolioSummary() {
+    let totalM = 0;
+    let totalE = 0;
+
+    state.portfolio.forEach((asset, idx) => {
+      const valMan = Math.max(0, Number(asset.value) || 0);
+      const ratio = Math.max(0, Math.min(1, Number(asset.ratio) || 0));
+      const evalMan = valMan * ratio;
+      totalM += valMan * 10000;
+      totalE += evalMan * 10000;
+
+      const evalCell = document.querySelector(`[data-eval-idx="${idx}"]`);
+      if (evalCell) {
+        evalCell.textContent = `${evalMan.toLocaleString('ja-JP', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} 万円`;
+      }
+    });
+
+    const sumM = document.getElementById('sum-market-val');
+    const sumE = document.getElementById('sum-eval-val');
+    if (sumM) sumM.textContent = formatMan(totalM);
+    if (sumE) sumE.textContent = formatMan(totalE);
   }
 
   function escapeHtml(str) {
@@ -1879,7 +1907,7 @@
   }
 
   // --- Main Refresh Controller ---
-  function refreshAll() {
+  function refreshAll(skipPortfolioRebuild = false) {
     // フォーム入力値とバッジの同期
     document.getElementById('input-principal').value = state.principal;
     document.getElementById('range-principal').value = state.principal;
@@ -1902,7 +1930,11 @@
 
     // 各セクションの描画
     updateKPIs(sim);
-    renderPortfolio();
+    if (!skipPortfolioRebuild) {
+      renderPortfolio();
+    } else {
+      updatePortfolioSummary();
+    }
     renderSimTable(sim);
     renderChart(sim);
     renderStressTest(sim);
@@ -2003,21 +2035,40 @@
     });
 
     // ポートフォリオテーブルの変更イベント（イベント委譲）
-    const pTbody = document.getElementById('portfolio-tbody');
+    // 入力値の正規化関数（全角数字やカンマに対応）
+    function parseManInput(str) {
+      if (typeof str !== 'string') return Number(str) || 0;
+      const normalized = str.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0)).replace(/,/g, '').trim();
+      return Math.max(0, Number(normalized) || 0);
+    }
 
     pTbody.addEventListener('input', (e) => {
       const target = e.target;
       const idx = target.getAttribute('data-idx');
       const field = target.getAttribute('data-field');
       if (idx !== null && field && state.portfolio[idx]) {
-        if (field === 'value' || field === 'ratio') {
-          state.portfolio[idx][field] = Number(target.value);
+        if (field === 'value') {
+          state.portfolio[idx].value = parseManInput(target.value);
+          refreshAll(true); // テーブルDOMを再生成せず、フォーカスを維持したまま全計算更新！
+        } else if (field === 'ratio') {
+          state.portfolio[idx].ratio = Number(target.value);
+          refreshAll(true);
         } else {
-          state.portfolio[idx][field] = target.value;
+          state.portfolio[idx].name = target.value;
         }
-        refreshAll();
       }
     });
+
+    // フォーカスが外れた時、正規化された数値文字列に整える
+    pTbody.addEventListener('blur', (e) => {
+      const target = e.target;
+      if (target && target.getAttribute('data-field') === 'value') {
+        const idx = target.getAttribute('data-idx');
+        if (idx !== null && state.portfolio[idx]) {
+          target.value = state.portfolio[idx].value;
+        }
+      }
+    }, true);
 
     pTbody.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-delete-idx]');
